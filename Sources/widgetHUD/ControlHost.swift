@@ -52,12 +52,6 @@ final class ControlHost: HUDPanelHost {
         router = HUDControlRouter(host: self, server: server, manifest: manifest)
         // MacHUD sends `widget sync` as soon as it connects, so the host is in place first.
         router.widgetHost = widgets
-        // The "Set a place" button asks MacHUD for the instance's settings: the event HUDKit's
-        // edit-mode gear sends through its internal `HUDWidgetHost.requestConfigure(_:)`, sent
-        // here through the router's `onEvent` because HUDWidgetContext has no public way to.
-        model.configure = { [weak widgets] context in
-            widgets?.onEvent?(["instance": context.instance, "type": context.type, "change": "configure"])
-        }
         model.weather.liveInstances = { [weak widgets] in Set(widgets?.instances.map(\.id) ?? []) }
         model.calendar.liveInstances = { [weak widgets] in Set(widgets?.instances.map(\.id) ?? []) }
     }

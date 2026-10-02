@@ -11,9 +11,6 @@ final class AppModel: ObservableObject {
     let settingsURL: URL?
     let weather: WeatherStore
     let calendar: CalendarStore
-    /// Asks MacHUD to show an instance's settings (the "Set a place" button). Set by the app
-    /// once the widget host is wired to the socket.
-    var configure: ((HUDWidgetContext) -> Void)?
     private var zoneObserver: NSObjectProtocol?
 
     /// `settingsURL` nil keeps settings in memory (tests).

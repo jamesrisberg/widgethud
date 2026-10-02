@@ -106,7 +106,7 @@ final class ControlHostTests: XCTestCase {
     func testSetAPlaceAsksMacHUDForTheInstanceSettings() throws {
         _ = call("widget", ["action": "create", "instance": "w", "type": "weather"])
         let context = try XCTUnwrap(host.widgets.context(for: "w"))
-        host.model.configure?(context)
+        context.configure()
         XCTAssertEqual(events.count, 1)
         XCTAssertEqual(events.first?["change"] as? String, "configure")
         XCTAssertEqual(events.first?["instance"] as? String, "w")

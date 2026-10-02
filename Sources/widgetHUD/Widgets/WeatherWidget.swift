@@ -31,7 +31,7 @@ struct WeatherWidget: View {
         let compact = context.size == .small
         if options.place.isEmpty {
             WidgetMessage(symbol: "mappin.and.ellipse", title: "Set a place", detail: compact ? nil : "Pick the city this widget shows.",
-                          button: "Choose…", compact: compact, action: { model.configure?(context) })
+                          button: "Choose…", compact: compact, action: { context.configure() })
         } else if let point = weather.point(for: options) {
             let entry = weather.entry(for: point)
             if let report = entry.report {
@@ -59,7 +59,7 @@ struct WeatherWidget: View {
             case .notFound:
                 WidgetMessage(symbol: "mappin.slash", title: "No place called “\(options.place)”",
                               detail: compact ? nil : "Try a city, or add a region: Portland, Maine.",
-                              button: "Change…", compact: compact, action: { model.configure?(context) })
+                              button: "Change…", compact: compact, action: { context.configure() })
             case .failed(let why, _):
                 WidgetMessage(symbol: "icloud.slash", title: "Can't look up \(options.place)", detail: "\(why). Trying again shortly.",
                               compact: compact)
