@@ -3,17 +3,21 @@ import XCTest
 @testable import widgetHUDKit
 
 final class AppSettingsTests: XCTestCase {
+    func testDefaultsFollowTheRegion() {
+        XCTAssertEqual(AppSettings(), AppSettings(temperatureUnit: .auto, timeFormat: .auto))
+    }
+
     func testApplyingParsesStrings() throws {
-        let next = try AppSettings().applying(["greeting": "  hi  ", "showCount": "off"])
-        XCTAssertEqual(next, AppSettings(greeting: "hi", showCount: false))
+        let next = try AppSettings().applying(["temperatureUnit": "celsius", "timeFormat": "24h"])
+        XCTAssertEqual(next, AppSettings(temperatureUnit: .celsius, timeFormat: .twentyFour))
     }
 
     func testApplyingRejectsBadValuesWithoutPartialChanges() {
         let settings = AppSettings()
-        XCTAssertThrowsError(try settings.applying(["showCount": "maybe"])) {
-            XCTAssertEqual($0 as? AppSettings.SettingsError, .invalid(key: "showCount", value: "maybe"))
+        XCTAssertThrowsError(try settings.applying(["temperatureUnit": "kelvin"])) {
+            XCTAssertEqual($0 as? AppSettings.SettingsError, .invalid(key: "temperatureUnit", value: "kelvin"))
         }
-        XCTAssertThrowsError(try settings.applying(["greeting": " "]))
+        XCTAssertThrowsError(try settings.applying(["timeFormat": "24h", "temperatureUnit": "kelvin"]))
         XCTAssertThrowsError(try settings.applying(["colour": "red"])) {
             XCTAssertEqual($0 as? AppSettings.SettingsError, .unknownKey("colour"))
         }
@@ -24,7 +28,7 @@ final class AppSettingsTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         let url = dir.appendingPathComponent("preferences.json")
         XCTAssertEqual(AppSettings.load(from: url), AppSettings(), "missing file reads as defaults")
-        let custom = AppSettings(greeting: "yo", showCount: false)
+        let custom = AppSettings(temperatureUnit: .fahrenheit, timeFormat: .twelve)
         try custom.save(to: url)
         XCTAssertEqual(AppSettings.load(from: url), custom)
     }
@@ -34,14 +38,10 @@ final class AppSettingsTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         let url = dir.appendingPathComponent("preferences.json")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        // Written before showCount existed, plus a key a later version dropped.
-        try Data(#"{"greeting": "yo", "retired": 3}"#.utf8).write(to: url)
-        XCTAssertEqual(AppSettings.load(from: url), AppSettings(greeting: "yo", showCount: true))
-        // One value of the wrong type falls back alone; the rest are kept.
-        try Data(#"{"greeting": "yo", "showCount": "sometimes"}"#.utf8).write(to: url)
-        XCTAssertEqual(AppSettings.load(from: url), AppSettings(greeting: "yo", showCount: true))
-        try Data(#"{"greeting": 7, "showCount": false}"#.utf8).write(to: url)
-        XCTAssertEqual(AppSettings.load(from: url), AppSettings(showCount: false))
+        try Data(#"{"temperatureUnit": "celsius", "retired": 3}"#.utf8).write(to: url)
+        XCTAssertEqual(AppSettings.load(from: url), AppSettings(temperatureUnit: .celsius))
+        try Data(#"{"temperatureUnit": "kelvin", "timeFormat": "12h"}"#.utf8).write(to: url)
+        XCTAssertEqual(AppSettings.load(from: url), AppSettings(timeFormat: .twelve))
         try Data("not json".utf8).write(to: url)
         XCTAssertEqual(AppSettings.load(from: url), AppSettings())
     }

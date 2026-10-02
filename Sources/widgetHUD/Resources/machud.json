@@ -2,17 +2,32 @@
   "id": "xyz.machud.widgethud",
   "name": "widgetHUD",
   "socket": "widgethud",
-  "iconName": "sparkles",
+  "iconName": "square.grid.2x2",
   "panels": [
     {
-      "id": "main",
-      "title": "widgetHUD",
-      "symbol": "sparkles",
-      "kind": "hover",
-      "order": 90,
-      "defaultSize": [320, 160],
-      "verbs": ["show", "hide", "toggle", "frame", "say"],
-      "settingsSchema": "settings.json"
+      "id": "clock",
+      "title": "Clock",
+      "symbol": "clock",
+      "kind": "widget",
+      "settingsSchema": "settings.json",
+      "widget": {"sizes": ["small", "medium"], "defaultSize": "small", "multiple": true, "refresh": 1,
+                 "settingsSchema": "clock.widget.json"}
+    },
+    {
+      "id": "weather",
+      "title": "Weather",
+      "symbol": "cloud.sun",
+      "kind": "widget",
+      "widget": {"sizes": ["small", "medium", "large"], "defaultSize": "small", "multiple": true, "refresh": 900,
+                 "settingsSchema": "weather.widget.json"}
+    },
+    {
+      "id": "calendar",
+      "title": "Calendar",
+      "symbol": "calendar",
+      "kind": "widget",
+      "widget": {"sizes": ["small", "medium", "large"], "defaultSize": "medium", "multiple": true, "refresh": 60,
+                 "settingsSchema": "calendar.widget.json"}
     }
   ]
 }

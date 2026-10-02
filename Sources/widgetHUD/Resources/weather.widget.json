@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "settings": [
+    {
+      "key": "place",
+      "title": "Place",
+      "type": "string",
+      "default": "",
+      "help": "A city, with a region or country after a comma to pick among namesakes: Portland, Maine."
+    },
+    {
+      "key": "units",
+      "title": "Temperature",
+      "type": "enum",
+      "options": [
+        {"value": "app", "title": "widgetHUD's setting"},
+        {"value": "celsius", "title": "Celsius (°C)"},
+        {"value": "fahrenheit", "title": "Fahrenheit (°F)"}
+      ],
+      "default": "app"
+    },
+    {
+      "key": "showHourly",
+      "title": "Show the next hours",
+      "type": "bool",
+      "default": true,
+      "help": "Medium and large sizes."
+    },
+    {
+      "key": "showDaily",
+      "title": "Show the next days",
+      "type": "bool",
+      "default": true,
+      "help": "Large size (and medium when the hours are off)."
+    }
+  ]
+}

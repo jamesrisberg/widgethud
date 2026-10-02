@@ -16,6 +16,8 @@
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
+    <!-- The calendar widget reads events (EventKit full access, macOS 14). -->
+    <key>NSCalendarsFullAccessUsageDescription</key><string>widgetHUD shows your upcoming events in its calendar widgets.</string>
     <key>NSHumanReadableCopyright</key><string>Copyright 2026 James Risberg. MIT License.</string>
 </dict>
 </plist>

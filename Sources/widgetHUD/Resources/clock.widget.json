@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "settings": [
+    {
+      "key": "timeZone",
+      "title": "Time zone",
+      "type": "string",
+      "default": "",
+      "help": "A city (Oslo, New York), a zone (Europe/Oslo) or an abbreviation (UTC). Empty follows this Mac."
+    },
+    {
+      "key": "label",
+      "title": "Label",
+      "type": "string",
+      "default": "",
+      "help": "Shown above the time. Empty shows the time zone's city."
+    },
+    {
+      "key": "style",
+      "title": "Face",
+      "type": "enum",
+      "options": [
+        {"value": "auto", "title": "Automatic"},
+        {"value": "analog", "title": "Analog"},
+        {"value": "digital", "title": "Digital"}
+      ],
+      "default": "auto",
+      "help": "Automatic is analog when small and digital with the date when medium."
+    },
+    {
+      "key": "timeFormat",
+      "title": "Hours",
+      "type": "enum",
+      "options": [
+        {"value": "app", "title": "widgetHUD's setting"},
+        {"value": "12h", "title": "12-hour"},
+        {"value": "24h", "title": "24-hour"}
+      ],
+      "default": "app"
+    },
+    {
+      "key": "seconds",
+      "title": "Show seconds",
+      "type": "bool",
+      "default": false
+    }
+  ]
+}

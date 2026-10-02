@@ -1,31 +1,31 @@
 import Foundation
 
-/// widgetHUD's settings: the values behind Resources/settings.json, persisted as JSON in
-/// `<home>/preferences.json`. Values arrive over the socket as strings (`settings set k=v`),
-/// so `applying(_:)` parses and validates them all before changing anything.
+/// widgetHUD's app-wide settings: the defaults every widget falls back to (Resources/settings.json),
+/// persisted as JSON in `<home>/preferences.json`. Values arrive over the socket as strings
+/// (`settings set k=v`), so `applying(_:)` parses and validates them all before changing anything.
+/// Each widget instance has its own settings on top (the `*.widget.json` schemas); an instance
+/// setting of `app` means "use these".
 public struct AppSettings: Codable, Equatable, Sendable {
-    public var greeting: String
-    public var showCount: Bool
+    public var temperatureUnit: TemperatureUnit.Preference
+    public var timeFormat: TimeFormat.Preference
 
-    public init(greeting: String = AppSettings.defaultGreeting, showCount: Bool = true) {
-        self.greeting = greeting
-        self.showCount = showCount
+    public init(temperatureUnit: TemperatureUnit.Preference = .auto, timeFormat: TimeFormat.Preference = .auto) {
+        self.temperatureUnit = temperatureUnit
+        self.timeFormat = timeFormat
     }
 
-    public static let defaultGreeting = "Hello from widgetHUD"
     /// The keys `settings get` reports and `settings set` accepts (Resources/settings.json).
-    public static let keys: Set<String> = ["greeting", "showCount"]
+    public static let keys: Set<String> = ["temperatureUnit", "timeFormat"]
 
     /// Saved values are merged over the defaults key by key: a key missing from
     /// `preferences.json` (written before the setting existed) or one that does not decode
-    /// keeps its default, and every other saved value is kept. With the synthesized decoder one
-    /// new field made the whole file fail to decode and every saved setting reset.
+    /// keeps its default, and every other saved value is kept.
     /// Add each new field here with `Self.value(_:_:default:)`.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = AppSettings()
-        greeting = Self.value(c, .greeting, default: d.greeting)
-        showCount = Self.value(c, .showCount, default: d.showCount)
+        temperatureUnit = Self.value(c, .temperatureUnit, default: d.temperatureUnit)
+        timeFormat = Self.value(c, .timeFormat, default: d.timeFormat)
     }
 
     private static func value<T: Decodable, K: CodingKey>(_ c: KeyedDecodingContainer<K>, _ key: K, default fallback: T) -> T {
@@ -49,13 +49,12 @@ public struct AppSettings: Codable, Equatable, Sendable {
         var next = self
         for (key, value) in values.sorted(by: { $0.key < $1.key }) {
             switch key {
-            case "greeting":
-                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else { throw SettingsError.invalid(key: key, value: value) }
-                next.greeting = trimmed
-            case "showCount":
-                guard let flag = Self.bool(value) else { throw SettingsError.invalid(key: key, value: value) }
-                next.showCount = flag
+            case "temperatureUnit":
+                guard let unit = TemperatureUnit.Preference(rawValue: value) else { throw SettingsError.invalid(key: key, value: value) }
+                next.temperatureUnit = unit
+            case "timeFormat":
+                guard let format = TimeFormat.Preference(rawValue: value) else { throw SettingsError.invalid(key: key, value: value) }
+                next.timeFormat = format
             default:
                 throw SettingsError.unknownKey(key)
             }
@@ -64,15 +63,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     }
 
     /// `settings get`'s payload.
-    public var json: [String: Any] { ["greeting": greeting, "showCount": showCount] }
-
-    static func bool(_ value: String) -> Bool? {
-        switch value.lowercased() {
-        case "1", "true", "yes", "on": return true
-        case "0", "false", "no", "off": return false
-        default: return nil
-        }
-    }
+    public var json: [String: Any] { ["temperatureUnit": temperatureUnit.rawValue, "timeFormat": timeFormat.rawValue] }
 
     // MARK: Persistence
 

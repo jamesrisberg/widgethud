@@ -2,17 +2,28 @@
   "version": 1,
   "settings": [
     {
-      "key": "greeting",
-      "title": "Greeting",
-      "type": "string",
-      "default": "Hello from widgetHUD",
-      "help": "What the panel says until `widgethud say` changes it."
+      "key": "temperatureUnit",
+      "title": "Temperature",
+      "type": "enum",
+      "options": [
+        {"value": "auto", "title": "From this Mac's region"},
+        {"value": "celsius", "title": "Celsius (°C)"},
+        {"value": "fahrenheit", "title": "Fahrenheit (°F)"}
+      ],
+      "default": "auto",
+      "help": "Weather widgets use this unless their own setting picks one."
     },
     {
-      "key": "showCount",
-      "title": "Show how many times the panel was opened",
-      "type": "bool",
-      "default": true
+      "key": "timeFormat",
+      "title": "Clock",
+      "type": "enum",
+      "options": [
+        {"value": "auto", "title": "From this Mac's region"},
+        {"value": "12h", "title": "12-hour"},
+        {"value": "24h", "title": "24-hour"}
+      ],
+      "default": "auto",
+      "help": "Clock, weather and calendar times use this unless a widget's own setting picks one."
     }
   ]
 }

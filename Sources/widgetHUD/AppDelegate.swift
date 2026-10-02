@@ -1,21 +1,37 @@
 import AppKit
 import HUDKit
+import widgetHUDKit
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var model: AppModel!
-    private var panel: PanelController!
     private var control: ControlHost!
     private var statusItem: NSStatusItem!
-    /// Pick a combination no sibling app uses (see the MacHUD apps' READMEs).
-    static let toggleHotKey = HUDHotKey(key: "h", modifiers: ["control", "option"])
+    private let statusLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // A menu bar app has no main menu, so without this ⌘C/⌘V/⌘X/⌘A/⌘Z do nothing in text fields.
-        HUDEditMenu.install(appName: "widgetHUD")
-        model = AppModel(settingsURL: AppEnvironment.settingsURL)
-        panel = PanelController(model: model)
-        control = ControlHost(model: model, panel: panel)
+        // `--snapshot <path.png>`: render widgets with sample data, print the files and quit.
+        // For docs and for checking the UI without Screen Recording permission.
+        let args = CommandLine.arguments
+        if args.contains("--snapshot") {
+            do {
+                for url in try Snapshot.run(arguments: args) { print(url.path) }
+            } catch {
+                FileHandle.standardError.write(Data("widgetHUD: snapshot failed: \(error)\n".utf8))
+                exit(1)
+            }
+            NSApp.terminate(nil)
+            return
+        }
+
+        if AppEnvironment.sampleData {
+            model = AppModel.sample(settingsURL: AppEnvironment.settingsURL)
+        } else {
+            model = AppModel(settingsURL: AppEnvironment.settingsURL,
+                             weather: WeatherStore(client: .live, cache: WeatherCache(url: AppEnvironment.weatherCacheURL)),
+                             calendar: CalendarStore(provider: EventKitCalendars()))
+        }
+        control = ControlHost(model: model)
         control.start()
         setupStatusItem()
         // Menu bar consolidation: MacHUD shows this menu inside its own (`menu`, `menu-invoke`)
@@ -23,46 +39,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // <home>/menubar.json, so it follows WIDGETHUD_HOME.
         control.router.menuProvider = { [weak self] in self?.statusItem.menu }
         HUDStatusItemPolicy.attach(statusItem, appID: control.manifest.id, store: .home(AppEnvironment.baseDirectory))
-        if AppEnvironment.hotKeysEnabled {
-            if HUDHotKeyCenter.shared.register(Self.toggleHotKey, onPress: { [weak self] in self?.panel.toggle() }) == nil {
-                NSLog("widgetHUD: %@ is taken by another app", Self.toggleHotKey.display)
-            }
-        }
-
-        // `--snapshot <path.png>`: show the panel, write a PNG of it once it settles, and quit.
-        // For docs and for checking the UI without Screen Recording permission.
-        let args = CommandLine.arguments
-        if let i = args.firstIndex(of: "--snapshot"), args.indices.contains(i + 1) {
-            let url = URL(fileURLWithPath: args[i + 1])
-            panel.show()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-                do {
-                    try self?.panel.writeSnapshot(to: url)
-                    print(url.path)
-                } catch {
-                    FileHandle.standardError.write(Data("widgetHUD: snapshot failed: \(error)\n".utf8))
-                }
-                NSApp.terminate(nil)
-            }
-        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        control.stop()
+        control?.stop()
     }
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         // MenuBarIcon.png from hudkit/scripts/hud-icon.sh; the symbol under `swift run`.
-        statusItem.button?.image = HUDStatusIcon.image(fallbackSymbol: "sparkles", accessibilityDescription: "widgetHUD")
+        statusItem.button?.image = HUDStatusIcon.image(fallbackSymbol: "square.grid.2x2", accessibilityDescription: "widgetHUD")
         let menu = NSMenu()
-        let toggle = NSMenuItem(title: "Show/Hide widgetHUD", action: #selector(togglePanel), keyEquivalent: "")
-        toggle.target = self
-        menu.addItem(toggle)
+        menu.delegate = self
+        statusLine.isEnabled = false
+        menu.addItem(statusLine)
+        menu.addItem(.separator())
+        let refresh = NSMenuItem(title: "Refresh Weather and Calendars", action: #selector(refreshAll), keyEquivalent: "r")
+        refresh.target = self
+        menu.addItem(refresh)
+        let access = NSMenuItem(title: "Calendar Access…", action: #selector(calendarAccess), keyEquivalent: "")
+        access.target = self
+        menu.addItem(access)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit widgetHUD", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
+        updateStatusLine()
     }
 
-    @objc private func togglePanel() { panel.toggle() }
+    /// Kept current when the menu opens (also when MacHUD lists it with `menu`).
+    func menuNeedsUpdate(_ menu: NSMenu) { updateStatusLine() }
+
+    private func updateStatusLine() {
+        let n = control.widgets.instances.count
+        statusLine.title = n == 0 ? "No widgets placed (add them in MacHUD)" : "\(n) widget\(n == 1 ? "" : "s") placed"
+    }
+
+    @objc private func refreshAll() {
+        model.weather.refreshDue(force: true)
+        model.calendar.reload()
+    }
+
+    /// The system prompt the first time; System Settings' Calendars pane once refused.
+    @objc private func calendarAccess() {
+        if model.calendar.access == .granted {
+            model.calendar.openPrivacySettings()
+        } else {
+            model.calendar.requestAccess()
+        }
+    }
 }

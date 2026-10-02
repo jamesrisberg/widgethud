@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "settings": [
+    {
+      "key": "calendars",
+      "title": "Calendars",
+      "type": "string",
+      "default": "",
+      "help": "Calendar names separated by commas: Work, Family. Empty shows every calendar."
+    },
+    {
+      "key": "daysAhead",
+      "title": "Days ahead",
+      "type": "int",
+      "min": 1,
+      "max": 14,
+      "step": 1,
+      "default": 3,
+      "help": "How far ahead the widget looks for events."
+    },
+    {
+      "key": "timeFormat",
+      "title": "Hours",
+      "type": "enum",
+      "options": [
+        {"value": "app", "title": "widgetHUD's setting"},
+        {"value": "12h", "title": "12-hour"},
+        {"value": "24h", "title": "24-hour"}
+      ],
+      "default": "app"
+    }
+  ]
+}

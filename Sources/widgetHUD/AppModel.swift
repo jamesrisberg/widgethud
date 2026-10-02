@@ -1,29 +1,44 @@
 import Foundation
+import HUDKit
 import widgetHUDKit
 
-/// What the panel shows. Owns the settings and writes them under `AppEnvironment`'s home.
+/// What the widgets share: the app-wide settings (written under `AppEnvironment`'s home) and the
+/// weather and calendar stores.
 @MainActor
 final class AppModel: ObservableObject {
     @Published private(set) var settings: AppSettings
-    /// Set by `widgethud say`; the greeting until then.
-    @Published var message: String?
-    @Published private(set) var opens = 0
 
     let settingsURL: URL?
+    let weather: WeatherStore
+    let calendar: CalendarStore
+    /// Asks MacHUD to show an instance's settings (the "Set a place" button). Set by the app
+    /// once the widget host is wired to the socket.
+    var configure: ((HUDWidgetContext) -> Void)?
 
-    /// `settingsURL` nil keeps everything in memory (tests).
-    init(settingsURL: URL?) {
+    /// `settingsURL` nil keeps settings in memory (tests).
+    init(settingsURL: URL?, weather: WeatherStore, calendar: CalendarStore) {
         self.settingsURL = settingsURL
+        self.weather = weather
+        self.calendar = calendar
         settings = settingsURL.map(AppSettings.load(from:)) ?? AppSettings()
     }
 
-    var text: String { message ?? settings.greeting }
-
-    func panelOpened() { opens += 1 }
+    /// Sample weather and events (snapshots, `WIDGETHUD_SAMPLE_DATA`, tests).
+    static func sample(settingsURL: URL? = nil) -> AppModel {
+        AppModel(settingsURL: settingsURL, weather: .sample(), calendar: .sample())
+    }
 
     func updateSettings(_ values: [String: String]) throws {
         let next = try settings.applying(values)
         if let settingsURL { try next.save(to: settingsURL) }
         settings = next
+    }
+
+    func temperatureUnit(instance: String?) -> TemperatureUnit {
+        TemperatureUnit.resolve(instance: instance, app: settings.temperatureUnit, regional: .regional())
+    }
+
+    func timeFormat(instance: String?) -> TimeFormat {
+        TimeFormat.resolve(instance: instance, app: settings.timeFormat, regional: .regional())
     }
 }
