@@ -363,4 +363,20 @@ final class SnapshotTests: XCTestCase {
         XCTAssertEqual(rep.pixelsWide, Int(HUDWidgetSize.large.points().width * 2))
         XCTAssertThrowsError(try Snapshot.run(arguments: ["x", "--snapshot", one.path, "--type", "clock", "--size", "large"]))
     }
+
+    /// A snapshot never serves a control socket (nor announces): the sockets directory and the
+    /// temp directory gain no socket file.
+    func testSnapshotsServeNoSocket() throws {
+        let sockets = URL(fileURLWithPath: HUDSocket.path(for: "widgethud")).deletingLastPathComponent()
+        func names(_ dir: URL) -> Set<String> {
+            Set(((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).filter { $0.hasSuffix(".sock") })
+        }
+        let temp = FileManager.default.temporaryDirectory
+        let (before, beforeTemp) = (names(sockets), names(temp))
+        let out = temp.appendingPathComponent("\(UUID().uuidString).png")
+        defer { try? FileManager.default.removeItem(at: out) }
+        _ = try Snapshot.run(arguments: ["x", "--snapshot", out.path, "--type", "clock"])
+        XCTAssertEqual(names(sockets), before)
+        XCTAssertEqual(names(temp), beforeTemp)
+    }
 }
