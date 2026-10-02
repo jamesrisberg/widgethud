@@ -44,7 +44,7 @@ widgetHUD adds or does differently.
 | `settings schema` | | `{schema}` from `settings.json` |
 | `action refresh` | | fetches every shown place's weather and reloads the calendars now. `{weather: <weather widgets tracked>, calendar: <access>}` |
 | `action places` | `query=<place>` | Open-Meteo's matches: `{query, best, places: [{name, latitude, longitude, timeZone}]}`; `best` is what a weather widget with that place would show |
-| `action status` | | `{instances, editing, revealed, weather: {sample, places: [{place, fetchedAt?, error?, loading}], instances}, calendar: {access, events, loadedAt?, sample}, settings}` |
+| `action status` | | `{instances, editing, revealed, weather: {sample, places: [{place, fetchedAt?, error?, loading}], lookups: [{text, found} or {text, state, error?, retryAt?}], instances}, calendar: {access, events, loadedAt?, sample, active, widgets}, settings}` |
 | `menu` / `menu-invoke` | `id=` (and optional `title=`) for `menu-invoke` | the status menu, so MacHUD can host it |
 | `quit` | | replies, then quits (the socket file is removed) |
 | `help` | | lists the registered commands |
@@ -80,26 +80,40 @@ Per instance, checked by the type's schema (`widget schema type=`):
 Weather widgets also keep, in the same settings, keys the schema does not list (so MacHUD's
 settings form does not show them): `latitude`, `longitude`, `resolvedPlace` (the `place` text
 they were found for) and `resolvedName` (`Portland, Maine, United States`). widgetHUD writes them
-with `HUDWidgetContext.updateSettings` after a lookup, which reports `change: settings`. When
-`place` no longer matches `resolvedPlace` (case and spacing aside), or the coordinates are
-missing or invalid, the place is looked up again; a settings form that replaces the instance's
-settings without them just costs one more lookup.
+with `HUDWidgetContext.updateSettings` after a lookup, which reports `change: settings`, once
+per instance and place text. A place text is looked up once (case, commas and spacing aside)
+however many widgets show it, and remembered in memory and in the cache file. When `place` no
+longer matches `resolvedPlace`, or the coordinates are missing or invalid, the remembered place
+is used, or the text is looked up if it is new; an instance whose settings come back without
+the coordinates (a settings form that replaces them) keeps showing the weather and is not
+written to again for the same text.
 
 ## Data
 
 - Weather: `https://api.open-meteo.com/v1/forecast` (current, 24 hourly, 6 daily values, the
   place's time zone, Celsius) and `https://geocoding-api.open-meteo.com/v1/search` for places.
-  One request per place every 15 minutes while a widget shows it (instances at the same place,
-  to two decimals of a degree, share it); after a failure, a retry after 2 minutes. The last
-  forecast per place is kept in `<home>/weather-cache.json` and shown at launch and offline,
-  with its age once it is 45 minutes old. A failed place lookup retries every minute.
+  Place names are asked for in this Mac's language. One forecast request per place every 15
+  minutes while a widget shows it (instances at the same place, to two decimals of a degree,
+  share it); after a failure, a retry after 2 minutes. A failed place lookup is retried after a
+  minute, doubling up to 30 minutes; a name with no match, or with coordinates out of range,
+  shows "No place called …". `<home>/weather-cache.json` keeps the last forecast per place and
+  the places looked up; forecasts are shown at launch and offline, with their age once 45
+  minutes old, and a forecast without today in it (cached on an earlier day) is shown as out of
+  date instead. Forecasts and places no widget shows any more leave the cache when their last
+  widget goes.
 - Calendar: EventKit, full access (`NSCalendarsFullAccessUsageDescription`; the
   `com.apple.security.personal-information.calendars` entitlement for the hardened runtime).
-  Access is requested when the first calendar widget appears, never at launch. The next 15
-  days of every calendar are read on a background queue and reloaded on `EKEventStoreChanged`,
-  at midnight, after wake and every 5 minutes; each instance filters by its `calendars` and
+  Access is requested when the first calendar widget appears, never at launch. While at least
+  one calendar widget is shown, the next 15 days of every calendar are read on a serial
+  background queue (a burst of changes loads once; only the newest load is kept) and reloaded
+  on `EKEventStoreChanged`, at midnight, after wake and every 5 minutes, and the access is
+  re-read every minute, so a grant made in System Settings shows within a minute. With no
+  calendar widget left, all of that stops. Each instance filters by its `calendars` and
   `daysAhead`. Without access the widget says why, with a button: Allow… (the system prompt)
   before the user was asked, Open Settings… (Privacy & Security › Calendars) after a refusal.
+- Clocks follow this Mac's time zone as it changes. Times use the 12- or 24-hour setting with
+  the locale's AM/PM words; "today", "tomorrow", weekdays and dates are in the locale's
+  language (widgetHUD's own words are English).
 
 ## Settings
 

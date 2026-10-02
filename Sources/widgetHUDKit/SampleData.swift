@@ -46,7 +46,7 @@ public enum SampleData {
         let soon = now.addingTimeInterval(25 * 60)
         return [
             CalendarEvent(id: "s1", title: "Design review", start: soon, end: soon.addingTimeInterval(3600),
-                          calendar: "Work", color: "#4F8DF7", location: "Studio"),
+                          calendar: "Work", color: "#4F8DF7"),
             CalendarEvent(id: "s2", title: "Lunch with Ana", start: soon.addingTimeInterval(3 * 3600),
                           end: soon.addingTimeInterval(4 * 3600), calendar: "Home", color: "#F2A541"),
             CalendarEvent(id: "s3", title: "Ship widgetHUD", start: today, end: at(1, 0), isAllDay: true,

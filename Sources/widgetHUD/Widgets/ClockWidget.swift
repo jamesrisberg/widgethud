@@ -11,13 +11,15 @@ struct ClockWidget: View {
     var body: some View {
         let options = ClockOptions(settings: context.jsonSettings)
         let format = model.timeFormat(instance: options.timeFormat)
-        if let zone = options.zone() {
-            TimelineView(.periodic(from: Self.minuteStart(), by: options.seconds ? 1 : 60)) { timeline in
+        // The zone is resolved on every tick, against this Mac's zone as it is now
+        // (`.autoupdatingCurrent`); `AppModel` redraws at once when the system zone changes.
+        TimelineView(.periodic(from: Self.minuteStart(), by: options.seconds ? 1 : 60)) { timeline in
+            if let zone = options.zone() {
                 ClockContent(date: timeline.date, zone: zone, options: options, format: format, small: context.size == .small)
+            } else {
+                WidgetMessage(symbol: "globe", title: "Unknown time zone",
+                              detail: "“\(options.timeZone)”: try a city or a name like Europe/Oslo.", compact: context.size == .small)
             }
-        } else {
-            WidgetMessage(symbol: "globe", title: "Unknown time zone", detail: "“\(options.timeZone)”: try a city or a name like Europe/Oslo.",
-                          compact: context.size == .small)
         }
     }
 

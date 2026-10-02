@@ -43,12 +43,12 @@ to widgetHUD whenever it starts. widgetHUD itself has no hotkeys and no window.
   seconds, and the analog or digital face are per clock.
 - **Weather**: set a place. A new weather widget says "Set a place" and its Choose… button opens
   the widget's settings in MacHUD. Add a region or country after a comma to pick among
-  namesakes (`Portland, Maine`). widgetHUD looks the place up once and remembers where it is;
+  namesakes (`Portland, Maine`). widgetHUD looks each place up once and remembers where it is;
   the forecast refreshes every 15 minutes and is kept on disk, so a widget shows the last
   forecast at launch and while offline (with its age).
 - **Calendar**: the first calendar widget asks for Calendar access (allow it at the prompt). If
   access is refused the widget says so and its button opens System Settings › Privacy &
-  Security › Calendars. Limit a widget to some calendars by name (`Work, Family`) and choose
+  Security › Calendars; once you allow it there, the widget fills in within a minute. Limit a widget to some calendars by name (`Work, Family`) and choose
   how many days ahead it looks.
 
 The menu bar icon's menu shows how many widgets are placed and has Refresh Weather and

@@ -73,11 +73,12 @@ public struct WeatherReport: Codable, Equatable, Sendable {
 
     public var zone: TimeZone { TimeZone(identifier: timeZone) ?? .current }
 
-    /// Today's forecast (the day containing `now` in the place's zone), else the first day.
+    /// Today's forecast (the day containing `now` in the place's zone); nil when the report
+    /// has none, as an old cached report does.
     public func today(now: Date = Date()) -> Day? {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = zone
-        return daily.first { calendar.isDate($0.date, inSameDayAs: now) } ?? daily.first
+        return daily.first { calendar.isDate($0.date, inSameDayAs: now) }
     }
 
     /// The next `count` hours, starting with the hour containing `now`.
@@ -228,12 +229,14 @@ public enum OpenMeteo {
         return c.url!
     }
 
-    public static func searchURL(_ name: String, count: Int = 10) -> URL {
+    /// `language`: the names' language (Open-Meteo knows the common ones and falls back to English).
+    public static func searchURL(_ name: String, count: Int = 10,
+                                 language: String = Locale.current.language.languageCode?.identifier ?? "en") -> URL {
         var c = URLComponents(string: "https://geocoding-api.open-meteo.com/v1/search")!
         c.queryItems = [
             URLQueryItem(name: "name", value: name),
             URLQueryItem(name: "count", value: String(count)),
-            URLQueryItem(name: "language", value: "en"),
+            URLQueryItem(name: "language", value: language),
             URLQueryItem(name: "format", value: "json"),
         ]
         return c.url!
@@ -380,26 +383,40 @@ public struct WeatherClient: Sendable {
     }
 }
 
-/// The last forecast per place, on disk so widgets show something at launch and offline.
+/// The last forecast per place and the places looked up, on disk so widgets show something at
+/// launch and offline, and a place is looked up once.
 public struct WeatherCache: Sendable {
+    public struct Contents: Codable, Equatable, Sendable {
+        /// `GeoPoint.key` → the last forecast there.
+        public var reports: [String: WeatherReport]
+        /// `WeatherOptions.placeKey` of the text typed → what it was found to be.
+        public var places: [String: GeoPlace]
+
+        public init(reports: [String: WeatherReport] = [:], places: [String: GeoPlace] = [:]) {
+            self.reports = reports
+            self.places = places
+        }
+    }
+
     public let url: URL
 
     public init(url: URL) {
         self.url = url
     }
 
-    public func load() -> [String: WeatherReport] {
-        guard let data = try? Data(contentsOf: url) else { return [:] }
+    /// Empty when the file is missing or unreadable.
+    public func load() -> Contents {
+        guard let data = try? Data(contentsOf: url) else { return Contents() }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970
-        return (try? decoder.decode([String: WeatherReport].self, from: data)) ?? [:]
+        return (try? decoder.decode(Contents.self, from: data)) ?? Contents()
     }
 
-    public func save(_ reports: [String: WeatherReport]) throws {
+    public func save(_ contents: Contents) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .secondsSince1970
         encoder.outputFormatting = [.sortedKeys]
-        try encoder.encode(reports).write(to: url, options: .atomic)
+        try encoder.encode(contents).write(to: url, options: .atomic)
     }
 }

@@ -35,14 +35,20 @@ final class UnitsTests: XCTestCase {
     }
 
     func testTimeFormatting() {
-        let utc = TimeZone(identifier: "UTC")!
+        let utc = TimeZone(identifier: "UTC")!, us = Locale(identifier: "en_US")
         let date = Date(timeIntervalSince1970: 14 * 3600 + 5 * 60 + 9)
-        XCTAssertEqual(TimeFormat.twentyFour.time(date, zone: utc), "14:05")
-        XCTAssertEqual(TimeFormat.twentyFour.time(date, zone: utc, seconds: true), "14:05:09")
-        XCTAssertEqual(TimeFormat.twelve.time(date, zone: utc), "2:05 PM")
-        XCTAssertEqual(TimeFormat.twelve.time(date, zone: TimeZone(identifier: "Asia/Tokyo")!), "11:05 PM")
-        XCTAssertEqual(TimeFormat.twentyFour.hour(date, zone: utc), "14")
-        XCTAssertEqual(TimeFormat.twelve.hour(date, zone: utc), "2 PM")
+        XCTAssertEqual(TimeFormat.twentyFour.time(date, zone: utc, locale: us), "14:05")
+        XCTAssertEqual(TimeFormat.twentyFour.time(date, zone: utc, seconds: true, locale: us), "14:05:09")
+        XCTAssertEqual(TimeFormat.twelve.time(date, zone: utc, locale: us), "2:05 PM")
+        XCTAssertEqual(TimeFormat.twelve.time(date, zone: TimeZone(identifier: "Asia/Tokyo")!, locale: us), "11:05 PM")
+        XCTAssertEqual(TimeFormat.twentyFour.hour(date, zone: utc, locale: us), "14")
+        XCTAssertEqual(TimeFormat.twelve.hour(date, zone: utc, locale: us), "2 PM")
+        XCTAssertEqual(TimeFormat.twelve.time(date, zone: utc, locale: Locale(identifier: "ko_KR")), "2:05 오후", "the locale's AM/PM")
+    }
+
+    func testBackoffDoublesFromAMinuteToHalfAnHour() {
+        XCTAssertEqual((0...7).map { Backoff.delay(attempts: $0) }, [0, 60, 120, 240, 480, 960, 1800, 1800])
+        XCTAssertEqual(Backoff.delay(attempts: 1000), 1800)
     }
 
     func testSettingReaderIsLenient() {

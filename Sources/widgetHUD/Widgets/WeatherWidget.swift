@@ -3,30 +3,27 @@ import SwiftUI
 import widgetHUDKit
 
 /// The weather widget (Open-Meteo): small (now, high/low), medium (+ the next hours), large
-/// (+ the next five days). The place is a setting; widgetHUD looks it up and stores the
-/// coordinates in the instance's settings, so the lookup happens once.
+/// (+ the next five days). The place is a setting; `WeatherStore` looks it up once and the
+/// coordinates are added to the instance's settings.
 struct WeatherWidget: View {
     @ObservedObject var context: HUDWidgetContext
     @ObservedObject var model: AppModel
     @ObservedObject var weather: WeatherStore
-    @State private var lookup: Lookup = .idle
-
-    enum Lookup: Equatable {
-        case idle, looking
-        case notFound
-        case failed(String)
-    }
-
-    /// What the lookup task depends on: it restarts when any of these change.
-    private struct TaskKey: Equatable {
-        var place: String
-        var point: GeoPoint?
-    }
 
     var body: some View {
-        let options = WeatherOptions(settings: context.jsonSettings)
-        content(options)
-            .task(id: TaskKey(place: options.place, point: options.point)) { await resolve(options) }
+        content(WeatherOptions(settings: context.jsonSettings))
+            .onAppear(perform: show)
+            .onChange(of: context.settings, show)
+            .onDisappear { weather.untrack(context.instance) }
+    }
+
+    /// Hands the instance's settings to the store, which tracks its forecast and, after a lookup,
+    /// returns the coordinates to add.
+    private func show() {
+        let context = context
+        weather.show(context.instance, options: WeatherOptions(settings: context.jsonSettings)) { values in
+            try? context.updateSettings(values.compactMapValues(HUDSettingValue.init(any:)))
+        }
     }
 
     @ViewBuilder
@@ -35,14 +32,22 @@ struct WeatherWidget: View {
         if options.place.isEmpty {
             WidgetMessage(symbol: "mappin.and.ellipse", title: "Set a place", detail: compact ? nil : "Pick the city this widget shows.",
                           button: "Choose…", compact: compact, action: { model.configure?(context) })
-        } else if let point = options.point {
+        } else if let point = weather.point(for: options) {
             let entry = weather.entry(for: point)
             if let report = entry.report {
                 // Redrawn every minute so the hours move on and a report's age shows.
                 TimelineView(.periodic(from: ClockWidget.minuteStart(), by: 60)) { timeline in
-                    WeatherReportView(report: report, entry: entry, name: options.displayName, options: options,
-                                      unit: model.temperatureUnit(instance: options.units),
-                                      format: model.timeFormat(instance: nil), size: context.size, now: timeline.date)
+                    if report.today(now: timeline.date) == nil {
+                        // A cached report from an earlier day: its "now" and "today" would be wrong.
+                        WidgetMessage(symbol: entry.error == "Offline" ? "wifi.slash" : "clock.arrow.circlepath",
+                                      title: options.displayName,
+                                      detail: "No forecast for today yet. Updated \(Age.text(since: report.fetchedAt, now: timeline.date)).",
+                                      compact: compact)
+                    } else {
+                        WeatherReportView(report: report, entry: entry, name: options.displayName, options: options,
+                                          unit: model.temperatureUnit(instance: options.units),
+                                          format: model.timeFormat(instance: nil), size: context.size, now: timeline.date)
+                    }
                 }
             } else if let error = entry.error, !entry.loading {
                 WidgetMessage(symbol: "icloud.slash", title: "Weather unavailable", detail: error, compact: compact)
@@ -50,50 +55,16 @@ struct WeatherWidget: View {
                 WidgetMessage(symbol: "cloud", title: options.displayName, detail: "Loading weather…", compact: compact, busy: true)
             }
         } else {
-            switch lookup {
+            switch weather.lookup(for: options) {
             case .notFound:
                 WidgetMessage(symbol: "mappin.slash", title: "No place called “\(options.place)”",
                               detail: compact ? nil : "Try a city, or add a region: Portland, Maine.",
                               button: "Change…", compact: compact, action: { model.configure?(context) })
-            case .failed(let why):
+            case .failed(let why, _):
                 WidgetMessage(symbol: "icloud.slash", title: "Can't look up \(options.place)", detail: "\(why). Trying again shortly.",
                               compact: compact)
-            case .idle, .looking:
+            case .looking, nil:
                 WidgetMessage(symbol: "magnifyingglass", title: "Finding \(options.place)…", compact: compact, busy: true)
-            }
-        }
-    }
-
-    /// Tracks the place's forecast, looking the place up first when its coordinates are missing
-    /// or stale (retrying every minute while offline).
-    private func resolve(_ options: WeatherOptions) async {
-        let id = context.instance
-        guard !options.place.isEmpty else {
-            weather.track(id, at: nil)
-            lookup = .idle
-            return
-        }
-        if let point = options.point {
-            lookup = .idle
-            weather.track(id, at: point)
-            return
-        }
-        weather.track(id, at: nil)
-        while !Task.isCancelled {
-            lookup = .looking
-            do {
-                guard let found = try await weather.lookUp(options.place) else {
-                    lookup = .notFound
-                    return
-                }
-                let values = WeatherOptions.resolution(for: options.place, found: found).compactMapValues(HUDSettingValue.init(any:))
-                try context.updateSettings(values)
-                return
-            } catch is CancellationError {
-                return
-            } catch {
-                lookup = .failed(WeatherStore.describe(error))
-                try? await Task.sleep(nanoseconds: 60 * 1_000_000_000)
             }
         }
     }
@@ -222,7 +193,7 @@ struct WeatherReportView: View {
         return VStack(spacing: 5) {
             ForEach(Array(days.enumerated()), id: \.offset) { i, day in
                 HStack(spacing: 8) {
-                    Text(i == 0 ? "Today" : weekday(day.date))
+                    Text(i == 0 ? Agenda.relativeDay(day.date, now: now, calendar: placeCalendar) ?? weekday(day.date) : weekday(day.date))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(WidgetLook.primary)
                         .frame(width: 44, alignment: .leading)
@@ -245,6 +216,12 @@ struct WeatherReportView: View {
                 }
             }
         }
+    }
+
+    private var placeCalendar: Calendar {
+        var calendar = Calendar.current
+        calendar.timeZone = report.zone
+        return calendar
     }
 
     private func weekday(_ date: Date) -> String {

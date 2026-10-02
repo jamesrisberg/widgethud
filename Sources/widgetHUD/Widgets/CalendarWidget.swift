@@ -4,7 +4,8 @@ import widgetHUDKit
 
 /// The calendar widget (EventKit): small (today's date and the next event), medium (the next
 /// three events), large (an agenda for the days ahead). widgetHUD asks for Calendar access when
-/// the first calendar widget appears; without it the widget says so and offers the fix.
+/// the first calendar widget appears; without it the widget says so and offers the fix, and a
+/// grant made later in System Settings shows within a minute (`CalendarStore.tick`).
 struct CalendarWidget: View {
     @ObservedObject var context: HUDWidgetContext
     @ObservedObject var model: AppModel
@@ -12,7 +13,8 @@ struct CalendarWidget: View {
 
     var body: some View {
         content
-            .onAppear { calendar.activate() }
+            .onAppear { calendar.appeared(context.instance) }
+            .onDisappear { calendar.disappeared(context.instance) }
     }
 
     @ViewBuilder

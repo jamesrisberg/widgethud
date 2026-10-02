@@ -75,8 +75,9 @@ public enum TimeFormat: String, Codable, CaseIterable, Sendable {
         }
     }
 
-    /// `"14:05"` / `"2:05 PM"` (with seconds: `"14:05:09"`), in `zone`.
-    public func time(_ date: Date, zone: TimeZone = .current, seconds: Bool = false, locale: Locale = Locale(identifier: "en_US_POSIX")) -> String {
+    /// `"14:05"` / `"2:05 PM"` (with seconds: `"14:05:09"`), in `zone`; the AM/PM marker in the
+    /// locale's words.
+    public func time(_ date: Date, zone: TimeZone = .autoupdatingCurrent, seconds: Bool = false, locale: Locale = .current) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale
         formatter.timeZone = zone
@@ -90,9 +91,9 @@ public enum TimeFormat: String, Codable, CaseIterable, Sendable {
     }
 
     /// An hour label for forecasts: `"14"` / `"2 PM"`, in `zone`.
-    public func hour(_ date: Date, zone: TimeZone = .current) -> String {
+    public func hour(_ date: Date, zone: TimeZone = .autoupdatingCurrent, locale: Locale = .current) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.locale = locale
         formatter.timeZone = zone
         formatter.dateFormat = self == .twentyFour ? "HH" : "h a"
         return formatter.string(from: date)
@@ -137,6 +138,15 @@ public enum SettingReader {
     public static func int(_ settings: [String: Any], _ key: String, default fallback: Int, range: ClosedRange<Int>) -> Int {
         guard let d = double(settings, key) else { return fallback }
         return min(max(Int(d.rounded()), range.lowerBound), range.upperBound)
+    }
+}
+
+/// How long to wait before retrying something that failed `attempts` times in a row: a minute,
+/// doubling each time, at most 30 minutes.
+public enum Backoff {
+    public static func delay(attempts: Int, base: TimeInterval = 60, cap: TimeInterval = 30 * 60) -> TimeInterval {
+        guard attempts > 0 else { return 0 }
+        return min(base * pow(2, Double(min(attempts - 1, 16))), cap)
     }
 }
 

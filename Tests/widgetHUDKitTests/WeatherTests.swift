@@ -23,6 +23,7 @@ final class WeatherTests: XCTestCase {
         XCTAssertEqual(r.hourly.last?.code, 63)
         XCTAssertEqual(r.daily.map(\.high), [16.3, 16.0, 14.5])
         XCTAssertEqual(r.today(now: fetched)?.low, 14.0)
+        XCTAssertNil(r.today(now: fetched.addingTimeInterval(4 * 86_400)), "an old report has no today, never another day's")
         XCTAssertEqual(r.nextHours(5, now: fetched).first?.time, Date(timeIntervalSince1970: 1_790_902_800),
                        "the hour containing now comes first")
         XCTAssertEqual(r.nextDays(2, now: fetched).map(\.code), [63, 51])
@@ -42,9 +43,11 @@ final class WeatherTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: dir) }
         let cache = WeatherCache(url: dir.appendingPathComponent("weather-cache.json"))
-        XCTAssertEqual(cache.load(), [:])
-        try cache.save(["59.91,10.75": r])
-        XCTAssertEqual(cache.load(), ["59.91,10.75": r])
+        XCTAssertEqual(cache.load(), WeatherCache.Contents())
+        let contents = WeatherCache.Contents(reports: ["59.91,10.75": r],
+                                             places: ["oslo": GeoPlace(name: "Oslo", country: "Norway", latitude: 59.91, longitude: 10.75)])
+        try cache.save(contents)
+        XCTAssertEqual(cache.load(), contents)
     }
 
     func testURLs() {
@@ -54,8 +57,10 @@ final class WeatherTests: XCTestCase {
                      "current=temperature_2m,weather_code,is_day"] {
             XCTAssertTrue(url.contains(part), part)
         }
-        XCTAssertEqual(OpenMeteo.searchURL("San José").absoluteString,
-                       "https://geocoding-api.open-meteo.com/v1/search?name=San%20Jos%C3%A9&count=10&language=en&format=json")
+        XCTAssertEqual(OpenMeteo.searchURL("San José", language: "es").absoluteString,
+                       "https://geocoding-api.open-meteo.com/v1/search?name=San%20Jos%C3%A9&count=10&language=es&format=json")
+        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        XCTAssertTrue(OpenMeteo.searchURL("Oslo").absoluteString.contains("language=\(lang)"), "the Mac's language by default")
     }
 
     func testSearchAndBestMatch() throws {

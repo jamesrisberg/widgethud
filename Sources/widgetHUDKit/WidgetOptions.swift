@@ -27,8 +27,9 @@ public struct ClockOptions: Equatable, Sendable {
         seconds = SettingReader.bool(settings, "seconds", default: false)
     }
 
-    /// The zone to show; `.current` for an empty setting; nil when the text names no zone.
-    public func zone(current: TimeZone = .current) -> TimeZone? {
+    /// The zone to show; this Mac's (following changes to it) for an empty setting; nil when the
+    /// text names no zone.
+    public func zone(current: TimeZone = .autoupdatingCurrent) -> TimeZone? {
         timeZone.isEmpty ? current : Self.resolveZone(timeZone)
     }
 
@@ -46,7 +47,7 @@ public struct ClockOptions: Equatable, Sendable {
 
     /// The label above the time: the setting, else the zone's city (`New York`; this Mac's for a
     /// local clock), else the text as typed (a zone that did not resolve).
-    public func displayLabel(zone: TimeZone?, current: TimeZone = .current) -> String {
+    public func displayLabel(zone: TimeZone?, current: TimeZone = .autoupdatingCurrent) -> String {
         if !label.isEmpty { return label }
         if isLocal { return Self.city(of: current) }
         return zone.map(Self.city(of:)) ?? timeZone
@@ -78,7 +79,7 @@ public struct ClockOptions: Equatable, Sendable {
     }
 
     /// The zone's offset from `local` at `date`, `"+9h"`, `"-5h30"`; nil when they agree.
-    public static func offsetLabel(_ zone: TimeZone, from local: TimeZone = .current, at date: Date = Date()) -> String? {
+    public static func offsetLabel(_ zone: TimeZone, from local: TimeZone = .autoupdatingCurrent, at date: Date = Date()) -> String? {
         let diff = zone.secondsFromGMT(for: date) - local.secondsFromGMT(for: date)
         guard diff != 0 else { return nil }
         let sign = diff > 0 ? "+" : "-"
@@ -118,6 +119,12 @@ public struct WeatherOptions: Equatable, Sendable {
         resolvedPlace = SettingReader.string(settings, "resolvedPlace")
         resolvedName = SettingReader.string(settings, "resolvedName")
     }
+
+    /// The key a place's text is known by: lower case, commas and runs of spaces as one space
+    /// (`" Portland ,Maine"` and `"portland, maine"` are one place).
+    public static func placeKey(_ text: String) -> String { normalized(text) }
+
+    public var placeKey: String { Self.placeKey(place) }
 
     /// Where to fetch weather for: the stored coordinates, when they belong to the current place.
     public var point: GeoPoint? {

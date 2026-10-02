@@ -62,8 +62,7 @@ final class EventKitCalendars: CalendarProviding, @unchecked Sendable {
             CalendarEvent(id: e.calendarItemIdentifier + "@" + String(e.startDate.timeIntervalSince1970),
                           title: e.title?.isEmpty == false ? e.title! : "Untitled",
                           start: e.startDate, end: e.endDate, isAllDay: e.isAllDay,
-                          calendar: e.calendar?.title ?? "", color: e.calendar?.cgColor.flatMap(Self.hex),
-                          location: e.location)
+                          calendar: e.calendar?.title ?? "", color: e.calendar?.cgColor.flatMap(Self.hex))
         }
     }
 
@@ -92,12 +91,17 @@ final class SampleCalendars: CalendarProviding, @unchecked Sendable {
 }
 
 /// The events every calendar widget draws from: the next two weeks of every calendar (each
-/// instance filters by its own calendars and days), reloaded when the database changes, when
-/// the day changes, after wake, and every five minutes.
+/// instance filters by its own calendars and days). Active while at least one calendar widget
+/// is shown: then it re-reads the access every minute (a grant in System Settings sends no
+/// EventKit notification), and reloads when the database changes, when the day changes, after
+/// wake and every five minutes. Loads run one at a time on a serial queue; a burst of changes
+/// loads once, and only the newest load's events are kept.
 @MainActor
 final class CalendarStore: ObservableObject {
     static let window = 15
-    static let reloadInterval: TimeInterval = 5 * 60
+    static let tick: TimeInterval = 60
+    /// Ticks between periodic reloads (five minutes).
+    static let reloadTicks = 5
 
     @Published private(set) var access: CalendarAccess
     @Published private(set) var events: [CalendarEvent] = []
@@ -105,10 +109,17 @@ final class CalendarStore: ObservableObject {
 
     let provider: CalendarProviding
     var now: () -> Date = Date.init
-    private var activated = false
+    /// The instances still placed: shown instances gone from it are dropped on the next tick.
+    var liveInstances: (() -> Set<String>)?
+    /// The calendar widgets on screen.
+    private(set) var shown: Set<String> = []
     private var requesting = false
     private var timer: Timer?
+    private var ticks = 0
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
+    private let queue = DispatchQueue(label: "widgethud.calendar", qos: .userInitiated)
+    /// Bumped by every reload; a load whose number is no longer the newest is skipped or dropped.
+    private let generation = Generation()
 
     init(provider: CalendarProviding) {
         self.provider = provider
@@ -127,13 +138,16 @@ final class CalendarStore: ObservableObject {
         return store
     }
 
-    /// The first calendar widget appeared: ask for access if never asked, then load and keep
-    /// loading.
-    func activate() {
-        guard !activated else { return }
-        activated = true
-        timer = Timer.scheduledTimer(withTimeInterval: Self.reloadInterval, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.reload() }
+    var isActive: Bool { timer != nil }
+
+    /// A calendar widget appeared. The first one starts the store: asks for access if never
+    /// asked, then loads and keeps loading.
+    func appeared(_ id: String) {
+        shown.insert(id)
+        guard !isActive else { return }
+        ticks = 0
+        timer = Timer.scheduledTimer(withTimeInterval: Self.tick, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
         }
         let center = NotificationCenter.default, workspace = NSWorkspace.shared.notificationCenter
         observers.append((center, center.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main) { [weak self] _ in
@@ -143,6 +157,30 @@ final class CalendarStore: ObservableObject {
             MainActor.assumeIsolated { self?.reload() }
         }))
         if provider.access == .notDetermined { requestAccess() } else { reload() }
+    }
+
+    /// A calendar widget went away; the last one stops the store.
+    func disappeared(_ id: String) {
+        shown.remove(id)
+        if shown.isEmpty { stop() }
+    }
+
+    /// Once a minute while active: drops widgets that are gone, notices an access change, and
+    /// reloads every `reloadTicks`.
+    func tick() {
+        if let live = liveInstances?() {
+            for id in shown where !live.contains(id) { disappeared(id) }
+            guard isActive else { return }
+        }
+        ticks += 1
+        if provider.access != access || ticks % Self.reloadTicks == 0 { reload() }
+    }
+
+    private func stop() {
+        timer?.invalidate()
+        timer = nil
+        for (center, token) in observers { center.removeObserver(token) }
+        observers = []
     }
 
     /// Shows the system prompt (first time) or, once refused, opens the Calendars privacy pane.
@@ -166,19 +204,23 @@ final class CalendarStore: ObservableObject {
 
     func reload() {
         access = provider.access
+        let mine = generation.next()
         guard access == .granted else {
             events = []
             return
         }
         let start = Calendar.current.startOfDay(for: now())
         let end = Agenda.horizon(days: Self.window, now: start)
-        let provider = provider
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        let provider = provider, generation = generation
+        queue.async { [weak self] in
+            // A newer reload is queued behind this one: let it do the work.
+            guard generation.current == mine else { return }
             let events = provider.events(from: start, to: end)
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
-                    self?.events = events
-                    self?.loadedAt = Date()
+                    guard let self, generation.current == mine else { return }
+                    self.events = events
+                    self.loadedAt = Date()
                 }
             }
         }
@@ -191,8 +233,24 @@ final class CalendarStore: ObservableObject {
     }
 
     var json: [String: Any] {
-        var d: [String: Any] = ["access": access.rawValue, "events": events.count, "sample": provider is SampleCalendars]
+        var d: [String: Any] = ["access": access.rawValue, "events": events.count, "sample": provider is SampleCalendars,
+                                "active": isActive, "widgets": shown.count]
         if let loadedAt { d["loadedAt"] = ISO8601DateFormatter().string(from: loadedAt) }
         return d
+    }
+}
+
+/// A counter read from the load queue and bumped on the main thread.
+private final class Generation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 0
+
+    var current: Int { lock.withLock { value } }
+
+    func next() -> Int {
+        lock.withLock {
+            value += 1
+            return value
+        }
     }
 }

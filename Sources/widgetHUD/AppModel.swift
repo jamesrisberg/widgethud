@@ -14,6 +14,7 @@ final class AppModel: ObservableObject {
     /// Asks MacHUD to show an instance's settings (the "Set a place" button). Set by the app
     /// once the widget host is wired to the socket.
     var configure: ((HUDWidgetContext) -> Void)?
+    private var zoneObserver: NSObjectProtocol?
 
     /// `settingsURL` nil keeps settings in memory (tests).
     init(settingsURL: URL?, weather: WeatherStore, calendar: CalendarStore) {
@@ -21,6 +22,13 @@ final class AppModel: ObservableObject {
         self.weather = weather
         self.calendar = calendar
         settings = settingsURL.map(AppSettings.load(from:)) ?? AppSettings()
+        // Clocks and agendas follow this Mac's zone; redraw them as soon as it changes.
+        zoneObserver = NotificationCenter.default.addObserver(forName: .NSSystemTimeZoneDidChange, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                NSTimeZone.resetSystemTimeZone()
+                self?.objectWillChange.send()
+            }
+        }
     }
 
     /// Sample weather and events (snapshots, `WIDGETHUD_SAMPLE_DATA`, tests).

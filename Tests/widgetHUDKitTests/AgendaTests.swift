@@ -53,20 +53,26 @@ final class AgendaTests: XCTestCase {
     }
 
     func testTitlesAndWhen() {
-        let now = at(0, 10)
-        XCTAssertEqual(Agenda.dayTitle(at(0, 0), now: now, calendar: calendar), "Today")
-        XCTAssertEqual(Agenda.dayTitle(at(1, 0), now: now, calendar: calendar), "Tomorrow")
-        XCTAssertEqual(Agenda.dayTitle(at(2, 0), now: now, calendar: calendar), "Sat 3 Oct")
+        let now = at(0, 10), us = Locale(identifier: "en_US")
+        XCTAssertEqual(Agenda.dayTitle(at(0, 0), now: now, calendar: calendar, locale: us), "Today")
+        XCTAssertEqual(Agenda.dayTitle(at(1, 0), now: now, calendar: calendar, locale: us), "Tomorrow")
+        XCTAssertEqual(Agenda.dayTitle(at(2, 0), now: now, calendar: calendar, locale: us), "Sat, Oct 3")
+        XCTAssertEqual(Agenda.dayTitle(at(1, 0), now: now, calendar: calendar, locale: Locale(identifier: "nb_NO")), "I morgen",
+                       "the locale's words")
+        XCTAssertNil(Agenda.relativeDay(at(2, 0), now: now, calendar: calendar, locale: us))
         let f = TimeFormat.twentyFour
-        XCTAssertEqual(Agenda.when(event("a", at(0, 9), at(0, 11)), now: now, format: f, calendar: calendar), "Now")
-        XCTAssertEqual(Agenda.when(event("b", at(0, 10, 25), at(0, 11)), now: now, format: f, calendar: calendar), "In 25 min")
-        XCTAssertEqual(Agenda.when(event("c", at(0, 14), at(0, 15)), now: now, format: f, calendar: calendar), "14:00")
-        XCTAssertEqual(Agenda.when(event("d", at(1, 9), at(1, 10)), now: now, format: .twelve, calendar: calendar), "Tomorrow 9:00 AM")
-        XCTAssertEqual(Agenda.when(event("e", at(2, 9), at(2, 10)), now: now, format: f, calendar: calendar), "Sat 9:00")
-        XCTAssertEqual(Agenda.when(event("f", at(0, 0), at(1, 0), allDay: true), now: now, format: f, calendar: calendar), "All day")
-        XCTAssertEqual(Agenda.when(event("g", at(1, 0), at(2, 0), allDay: true), now: now, format: f, calendar: calendar), "Tomorrow, all day")
-        XCTAssertEqual(Agenda.span(event("h", at(0, 14), at(0, 15)), format: f, calendar: calendar), "14:00")
-        XCTAssertEqual(Agenda.span(event("i", at(0, 0), at(1, 0), allDay: true), format: f, calendar: calendar), "All day")
+        func when(_ e: CalendarEvent, _ format: TimeFormat = .twentyFour) -> String {
+            Agenda.when(e, now: now, format: format, calendar: calendar, locale: us)
+        }
+        XCTAssertEqual(when(event("a", at(0, 9), at(0, 11))), "Now")
+        XCTAssertEqual(when(event("b", at(0, 10, 25), at(0, 11))), "In 25 min")
+        XCTAssertEqual(when(event("c", at(0, 14), at(0, 15))), "14:00")
+        XCTAssertEqual(when(event("d", at(1, 9), at(1, 10)), .twelve), "Tomorrow 9:00 AM")
+        XCTAssertEqual(when(event("e", at(2, 9), at(2, 10))), "Sat 9:00")
+        XCTAssertEqual(when(event("f", at(0, 0), at(1, 0), allDay: true)), "All day")
+        XCTAssertEqual(when(event("g", at(1, 0), at(2, 0), allDay: true)), "Tomorrow, all day")
+        XCTAssertEqual(Agenda.span(event("h", at(0, 14), at(0, 15)), format: f, calendar: calendar, locale: us), "14:00")
+        XCTAssertEqual(Agenda.span(event("i", at(0, 0), at(1, 0), allDay: true), format: f, calendar: calendar, locale: us), "All day")
     }
 
     func testSampleEventsAreUpcoming() {

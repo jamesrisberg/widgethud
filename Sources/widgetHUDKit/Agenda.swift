@@ -12,10 +12,9 @@ public struct CalendarEvent: Codable, Equatable, Identifiable, Sendable {
     public var calendar: String
     /// The calendar's colour, `#RRGGBB`.
     public var color: String?
-    public var location: String?
 
     public init(id: String, title: String, start: Date, end: Date, isAllDay: Bool = false, calendar: String,
-                color: String? = nil, location: String? = nil) {
+                color: String? = nil) {
         self.id = id
         self.title = title
         self.start = start
@@ -23,7 +22,6 @@ public struct CalendarEvent: Codable, Equatable, Identifiable, Sendable {
         self.isAllDay = isAllDay
         self.calendar = calendar
         self.color = color
-        self.location = location
     }
 
     public func isHappening(at now: Date) -> Bool { start <= now && now < end }
@@ -88,37 +86,55 @@ public enum Agenda {
         return out
     }
 
-    /// `"Today"`, `"Tomorrow"`, else `"Fri 3 Oct"`.
-    public static func dayTitle(_ day: Date, now: Date, calendar: Calendar = .current) -> String {
-        if calendar.isDate(day, inSameDayAs: now) { return "Today" }
-        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(day, inSameDayAs: tomorrow) {
-            return "Tomorrow"
-        }
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = calendar.timeZone
-        f.dateFormat = "EEE d MMM"
-        return f.string(from: day)
+    /// The locale's words for today and tomorrow (`"Today"`, `"I morgen"`), else its short
+    /// weekday and date (`"Sat, Oct 3"`, `"lør. 3. okt."`).
+    public static func dayTitle(_ day: Date, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
+        if let relative = relativeDay(day, now: now, calendar: calendar, locale: locale) { return relative }
+        return format(day, template: "EEEdMMM", calendar: calendar, locale: locale)
     }
 
     /// When an event is, relative to `now`: `"Now"`, `"In 25 min"`, `"All day"`, `"14:00"`,
-    /// `"Tomorrow 9:00 AM"`, `"Fri 14:00"`.
-    public static func when(_ event: CalendarEvent, now: Date, format: TimeFormat, calendar: Calendar = .current) -> String {
+    /// `"Tomorrow 9:00 AM"`, `"Sat 14:00"` (day words and times in the locale's language).
+    public static func when(_ event: CalendarEvent, now: Date, format: TimeFormat, calendar: Calendar = .current,
+                            locale: Locale = .current) -> String {
         if event.isAllDay {
-            if event.start <= now { return "All day" }
-            return calendar.isDate(event.start, inSameDayAs: now) ? "All day" : "\(dayTitle(event.start, now: now, calendar: calendar)), all day"
+            if event.start <= now || calendar.isDate(event.start, inSameDayAs: now) { return "All day" }
+            return "\(dayTitle(event.start, now: now, calendar: calendar, locale: locale)), all day"
         }
         if event.isHappening(at: now) { return "Now" }
         let minutes = Int(event.start.timeIntervalSince(now) / 60)
         if minutes < 60 { return "In \(max(minutes, 1)) min" }
-        let time = format.time(event.start, zone: calendar.timeZone)
+        let time = format.time(event.start, zone: calendar.timeZone, locale: locale)
         if calendar.isDate(event.start, inSameDayAs: now) { return time }
-        return "\(dayTitle(event.start, now: now, calendar: calendar).split(separator: " ").first.map(String.init) ?? "") \(time)"
+        let day = relativeDay(event.start, now: now, calendar: calendar, locale: locale)
+            ?? Self.format(event.start, template: "EEE", calendar: calendar, locale: locale)
+        return "\(day) \(time)"
     }
 
     /// An event's time in the agenda: `"All day"` or its start (`"14:00"`).
-    public static func span(_ event: CalendarEvent, format: TimeFormat, calendar: Calendar = .current) -> String {
+    public static func span(_ event: CalendarEvent, format: TimeFormat, calendar: Calendar = .current, locale: Locale = .current) -> String {
         if event.isAllDay { return "All day" }
-        return format.time(event.start, zone: calendar.timeZone)
+        return format.time(event.start, zone: calendar.timeZone, locale: locale)
+    }
+
+    /// The locale's word for `day` when it is today or tomorrow (`"Today"`, `"I morgen"`); nil otherwise.
+    public static func relativeDay(_ day: Date, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String? {
+        let offset = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: day)).day
+        guard let offset, offset == 0 || offset == 1 else { return nil }
+        let f = RelativeDateTimeFormatter()
+        f.locale = locale
+        f.calendar = calendar
+        f.dateTimeStyle = .named
+        let word = f.localizedString(from: DateComponents(day: offset))
+        return word.prefix(1).uppercased(with: locale) + word.dropFirst()
+    }
+
+    static func format(_ date: Date, template: String, calendar: Calendar, locale: Locale) -> String {
+        let f = DateFormatter()
+        f.locale = locale
+        f.calendar = calendar
+        f.timeZone = calendar.timeZone
+        f.setLocalizedDateFormatFromTemplate(template)
+        return f.string(from: date)
     }
 }
