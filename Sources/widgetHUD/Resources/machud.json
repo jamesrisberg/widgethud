@@ -1,0 +1,18 @@
+{
+  "id": "xyz.machud.widgethud",
+  "name": "widgetHUD",
+  "socket": "widgethud",
+  "iconName": "sparkles",
+  "panels": [
+    {
+      "id": "main",
+      "title": "widgetHUD",
+      "symbol": "sparkles",
+      "kind": "hover",
+      "order": 90,
+      "defaultSize": [320, 160],
+      "verbs": ["show", "hide", "toggle", "frame", "say"],
+      "settingsSchema": "settings.json"
+    }
+  ]
+}
