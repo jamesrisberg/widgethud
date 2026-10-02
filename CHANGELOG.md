@@ -6,7 +6,7 @@ All notable changes to widgetHUD are documented here. The format follows
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-10-01
+## [0.3.0] - 2026-10-02
 
 ### Added
 - Desktop widgets for MacHUD: a clock (small analog, medium digital with the date; any time
