@@ -3,10 +3,10 @@ import HUDKit
 import widgetHUDKit
 
 /// `--snapshot <path.png> [--type <type>] [--size <size>] [--editing]`: renders widgets with
-/// sample data (no network, no Calendar access) over a dark stand-in for the glass.
+/// sample data (no network) over a dark stand-in for the glass.
 ///
 /// With `--type` and `--size`, one widget goes to `<path.png>`. Otherwise every type at every
-/// size, plus the states a user meets before a widget has data (no place, no Calendar access,
+/// size, plus the states a user meets before a widget has data (no place,
 /// a world clock), go to `<stem>-<name>.png` beside it, and `<path.png>` is a contact sheet of
 /// them all.
 @MainActor
@@ -16,7 +16,6 @@ enum Snapshot {
         var type: String
         var size: HUDWidgetSize
         var settings: [String: HUDSettingValue] = [:]
-        var calendarAccess: CalendarAccess = .granted
     }
 
     static let oslo: [String: HUDSettingValue] = [
@@ -40,8 +39,6 @@ enum Snapshot {
         shots.append(Shot(name: "weather-small-noplace", type: "weather", size: .small))
         shots.append(Shot(name: "weather-medium-daily", type: "weather", size: .medium,
                           settings: oslo.merging(["showHourly": .bool(false)]) { $1 }))
-        shots.append(Shot(name: "calendar-small-noaccess", type: "calendar", size: .small, calendarAccess: .notDetermined))
-        shots.append(Shot(name: "calendar-medium-denied", type: "calendar", size: .medium, calendarAccess: .denied))
         return shots
     }
 
@@ -73,7 +70,7 @@ enum Snapshot {
     }
 
     static func render(_ shot: Shot, editing: Bool, to url: URL) throws {
-        let model = AppModel(settingsURL: nil, weather: .sample(), calendar: .sample(access: shot.calendarAccess))
+        let model = AppModel(settingsURL: nil, weather: .sample())
         let control = ControlHost(model: model, socketPath: NSTemporaryDirectory() + "widgethud-snapshot-\(UUID().uuidString).sock")
         try control.widgets.writeSnapshot(type: shot.type, size: shot.size, settings: shot.settings, editing: editing, to: url)
     }

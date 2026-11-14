@@ -1,7 +1,7 @@
 import Foundation
 
 /// Made-up weather and events for `--snapshot` and `WIDGETHUD_SAMPLE_DATA=1`: offline, without
-/// Calendar access, relative to `now` so they always look current.
+/// location access, relative to `now` so they always look current.
 public enum SampleData {
     public static let place = GeoPlace(name: "Oslo", admin1: "Oslo", country: "Norway", countryCode: "NO",
                                        latitude: 59.91, longitude: 10.75, timeZone: "Europe/Oslo")
@@ -37,24 +37,4 @@ public enum SampleData {
                              current: .init(temperature: 14.4, code: 2, isDay: hours[0].isDay), hourly: hours, daily: daily)
     }
 
-    public static func events(now: Date = Date(), calendar: Calendar = .current) -> [CalendarEvent] {
-        let today = calendar.startOfDay(for: now)
-        func at(_ day: Int, _ hour: Int, _ minute: Int = 0) -> Date {
-            let d = calendar.date(byAdding: .day, value: day, to: today) ?? today
-            return calendar.date(bySettingHour: hour, minute: minute, second: 0, of: d) ?? d
-        }
-        let soon = now.addingTimeInterval(25 * 60)
-        return [
-            CalendarEvent(id: "s1", title: "Design review", start: soon, end: soon.addingTimeInterval(3600),
-                          calendar: "Work", color: "#4F8DF7"),
-            CalendarEvent(id: "s2", title: "Lunch with Ana", start: soon.addingTimeInterval(3 * 3600),
-                          end: soon.addingTimeInterval(4 * 3600), calendar: "Home", color: "#F2A541"),
-            CalendarEvent(id: "s3", title: "Ship widgetHUD", start: today, end: at(1, 0), isAllDay: true,
-                          calendar: "Work", color: "#4F8DF7"),
-            CalendarEvent(id: "s4", title: "Climbing", start: at(1, 18), end: at(1, 20), calendar: "Home", color: "#F2A541"),
-            CalendarEvent(id: "s5", title: "1:1 with Sam", start: at(1, 9, 30), end: at(1, 10), calendar: "Work", color: "#4F8DF7"),
-            CalendarEvent(id: "s6", title: "Dentist", start: at(2, 8), end: at(2, 9), calendar: "Home", color: "#F2A541"),
-            CalendarEvent(id: "s7", title: "Team offsite", start: at(2, 10), end: at(2, 16), calendar: "Work", color: "#4F8DF7"),
-        ]
-    }
 }

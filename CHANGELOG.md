@@ -6,6 +6,11 @@ All notable changes to widgetHUD are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- widgetHUD provides clock and weather widgets. Calendar widgets are provided by calHUD,
+  which also has a calendar hover panel. widgetHUD does not request Calendar access.
+
+
 ## [0.3.2] - 2026-11-14
 
 ### Changed

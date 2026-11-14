@@ -8,8 +8,8 @@ import Foundation
 /// - `WIDGETHUD_SOCKET`: socket name under MacHUD's sockets directory; default `widgethud`.
 /// - `WIDGETHUD_NO_HOTKEYS`: accepted for the family's isolation convention; widgetHUD registers
 ///   no global hotkeys (MacHUD's ⌃⌥W reveals widgets).
-/// - `WIDGETHUD_SAMPLE_DATA`: set to show made-up weather and events: no network, no Calendar
-///   access asked (test instances, demos).
+/// - `WIDGETHUD_SAMPLE_DATA`: set to show made-up weather without network access
+///   (test instances, demos).
 enum AppEnvironment {
     static let environment = ProcessInfo.processInfo.environment
 

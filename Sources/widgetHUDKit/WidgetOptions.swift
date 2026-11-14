@@ -155,26 +155,3 @@ public struct WeatherOptions: Equatable, Sendable {
         s.lowercased().split(whereSeparator: { $0 == "," || $0.isWhitespace }).joined(separator: " ")
     }
 }
-
-/// A calendar instance's settings (Resources/calendar.widget.json).
-public struct CalendarOptions: Equatable, Sendable {
-    public static let keys: Set<String> = ["calendars", "daysAhead", "timeFormat"]
-    public static let daysRange = 1...14
-
-    /// Calendar names to show (any case); empty shows every calendar.
-    public var calendars: [String]
-    public var daysAhead: Int
-    /// `12h`, `24h`, or anything else for the app's setting.
-    public var timeFormat: String
-
-    public init(settings: [String: Any]) {
-        calendars = SettingReader.string(settings, "calendars").split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-        daysAhead = SettingReader.int(settings, "daysAhead", default: 3, range: Self.daysRange)
-        timeFormat = SettingReader.string(settings, "timeFormat", default: "app")
-    }
-
-    public func includes(_ event: CalendarEvent) -> Bool {
-        calendars.isEmpty || calendars.contains { $0.caseInsensitiveCompare(event.calendar) == .orderedSame }
-    }
-}

@@ -23,7 +23,7 @@
         {"value": "24h", "title": "24-hour"}
       ],
       "default": "auto",
-      "help": "Clock, weather and calendar times use this unless a widget's own setting picks one."
+      "help": "Clock and weather times use this unless a widget's own setting picks one."
     }
   ]
 }

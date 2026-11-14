@@ -193,7 +193,7 @@ struct WeatherReportView: View {
         return VStack(spacing: 5) {
             ForEach(Array(days.enumerated()), id: \.offset) { i, day in
                 HStack(spacing: 8) {
-                    Text(i == 0 ? Agenda.relativeDay(day.date, now: now, calendar: placeCalendar) ?? weekday(day.date) : weekday(day.date))
+                    Text(i == 0 ? WeatherDayLabel.relativeDay(day.date, now: now, calendar: placeCalendar) ?? weekday(day.date) : weekday(day.date))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(WidgetLook.primary)
                         .frame(width: 44, alignment: .leading)

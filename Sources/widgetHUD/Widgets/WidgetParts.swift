@@ -1,13 +1,12 @@
 import HUDKit
 import SwiftUI
 
-/// The look the three widgets share: white type on the family glass.
+/// The look the widgets share: white type on the family glass.
 enum WidgetLook {
     static let padding: CGFloat = 14
     static let primary = Color.white
     static let secondary = Color.white.opacity(0.62)
     static let tertiary = Color.white.opacity(0.4)
-    /// The calendar's weekday red.
     static let accent = Color(red: 1, green: 0.42, blue: 0.38)
 }
 

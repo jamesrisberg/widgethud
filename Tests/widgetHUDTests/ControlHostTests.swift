@@ -40,7 +40,7 @@ final class ControlHostTests: XCTestCase {
         XCTAssertEqual(hello["app"] as? String, "xyz.machud.widgethud")
         XCTAssertTrue((hello["verbs"] as? [String])?.contains("widget") == true)
         let panels = hello["panels"] as? [[String: Any]] ?? []
-        XCTAssertEqual(panels.map { $0["id"] as? String }, ["clock", "weather", "calendar"])
+        XCTAssertEqual(panels.map { $0["id"] as? String }, ["clock", "weather"])
         XCTAssertTrue(panels.allSatisfy { $0["kind"] as? String == "widget" })
     }
 
@@ -81,8 +81,6 @@ final class ControlHostTests: XCTestCase {
         XCTAssertEqual(settings["timeZone"], .string("Tokyo"))
         let bad = call("widget", ["action": "update", "instance": "c", "settings": #"{"style": "sundial"}"#])
         XCTAssertEqual(bad["ok"] as? Bool, false)
-        let days = call("widget", ["action": "create", "instance": "k", "type": "calendar", "settings": #"{"daysAhead": 30}"#])
-        XCTAssertEqual(days["error"] as? String, "daysAhead must be at most 14")
     }
 
     func testSchemaAndSync() {
@@ -126,7 +124,7 @@ final class ControlHostTests: XCTestCase {
         XCTAssertEqual(call("action", ["name": "refresh"])["ok"] as? Bool, true)
         let status = call("action", ["name": "status"])
         XCTAssertEqual(status["ok"] as? Bool, true)
-        XCTAssertEqual((status["calendar"] as? [String: Any])?["access"] as? String, "granted")
+        XCTAssertNil(status["calendar"])
         XCTAssertEqual(call("action", ["name": "places"])["error"] as? String, "places needs query=<place>")
         let places = await callAsync("action", ["name": "places", "query": "Bergen, Norway"])
         XCTAssertEqual(places["ok"] as? Bool, true)

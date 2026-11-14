@@ -3,23 +3,21 @@ import HUDKit
 import widgetHUDKit
 
 /// What the widgets share: the app-wide settings (written under `AppEnvironment`'s home) and the
-/// weather and calendar stores.
+/// weather store.
 @MainActor
 final class AppModel: ObservableObject {
     @Published private(set) var settings: AppSettings
 
     let settingsURL: URL?
     let weather: WeatherStore
-    let calendar: CalendarStore
     private var zoneObserver: NSObjectProtocol?
 
     /// `settingsURL` nil keeps settings in memory (tests).
-    init(settingsURL: URL?, weather: WeatherStore, calendar: CalendarStore) {
+    init(settingsURL: URL?, weather: WeatherStore) {
         self.settingsURL = settingsURL
         self.weather = weather
-        self.calendar = calendar
         settings = settingsURL.map(AppSettings.load(from:)) ?? AppSettings()
-        // Clocks and agendas follow this Mac's zone; redraw them as soon as it changes.
+        // Clocks and forecasts follow this Mac's zone; redraw them as soon as it changes.
         zoneObserver = NotificationCenter.default.addObserver(forName: .NSSystemTimeZoneDidChange, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 NSTimeZone.resetSystemTimeZone()
@@ -28,9 +26,9 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Sample weather and events (snapshots, `WIDGETHUD_SAMPLE_DATA`, tests).
+    /// Sample weather (snapshots, `WIDGETHUD_SAMPLE_DATA`, tests).
     static func sample(settingsURL: URL? = nil) -> AppModel {
-        AppModel(settingsURL: settingsURL, weather: .sample(), calendar: .sample())
+        AppModel(settingsURL: settingsURL, weather: .sample())
     }
 
     func updateSettings(_ values: [String: String]) throws {
