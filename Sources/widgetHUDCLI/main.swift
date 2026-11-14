@@ -14,14 +14,14 @@ let usage = """
 usage: widgethud <command> [key=value ...]
   hello | state | help | menu | quit
   widget list
-  widget create instance= type=clock|weather|calendar [size=] [frame=x,y,w,h] [layer=desktop|float] [settings=<json>]
+  widget create instance= type=clock|weather [size=] [frame=x,y,w,h] [layer=desktop|float] [settings=<json>]
   widget update instance= [size=] [frame=] [layer=] [settings=<json>]
   widget remove instance=
   widget sync instances=<json array> [editing=on|off] [revealed=on|off]
   widget edit on|off  |  widget reveal on|off  |  widget schema type=
-  refresh                            fetch weather and reload calendars now
+  refresh                            fetch weather now
   places <place>                     look a place up with Open-Meteo (what a weather widget would show)
-  status                             instances, weather places, Calendar access
+  status                             instances and weather places
   settings get [key=]  |  settings set temperatureUnit=auto|celsius|fahrenheit timeFormat=auto|12h|24h
 
 Environment: WIDGETHUD_SOCKET picks the socket name (default widgethud).

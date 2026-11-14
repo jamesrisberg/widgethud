@@ -4,12 +4,12 @@ import widgetHUDKit
 
 /// widgetHUD's side of the MacHUD contract: serves the control socket at
 /// `~/Library/Application Support/MacHUD/sockets/widgethud.sock` through HUDKit's router. A
-/// widget-only app: no dock panel, three widget types served by `widgets`, app-wide settings,
+/// widget-only app: no dock panel, two widget types served by `widgets`, app-wide settings,
 /// and a few actions. See docs/CONTRACT.md for the verbs.
 @MainActor
 final class ControlHost: HUDPanelHost {
     nonisolated static let actions = ["refresh", "places", "status"]
-    nonisolated static let widgetTypes = ["clock", "weather", "calendar"]
+    nonisolated static let widgetTypes = ["clock", "weather"]
 
     /// Used when running outside a bundle (`swift run`, tests); mirrors Resources/machud.json.
     static let builtinManifest = HUDManifest(id: "xyz.machud.widgethud", name: "widgetHUD", socket: "widgethud", panels: [
@@ -19,9 +19,6 @@ final class ControlHost: HUDPanelHost {
         HUDManifest.Panel(id: "weather", title: "Weather", symbol: "cloud.sun", kind: .widget,
                           widget: HUDWidgetSpec(sizes: [.small, .medium, .large], defaultSize: .small, multiple: true, refresh: 900,
                                                 settingsSchema: "weather.widget.json")),
-        HUDManifest.Panel(id: "calendar", title: "Calendar", symbol: "calendar", kind: .widget,
-                          widget: HUDWidgetSpec(sizes: [.small, .medium, .large], defaultSize: .medium, multiple: true, refresh: 60,
-                                                settingsSchema: "calendar.widget.json")),
     ], iconName: "square.grid.2x2")
 
     let manifest: HUDManifest
@@ -48,12 +45,10 @@ final class ControlHost: HUDPanelHost {
         }
         widgets.register("clock") { [model] in ClockWidget(context: $0, model: model) }
         widgets.register("weather") { [model] in WeatherWidget(context: $0, model: model, weather: model.weather) }
-        widgets.register("calendar") { [model] in CalendarWidget(context: $0, model: model, calendar: model.calendar) }
         router = HUDControlRouter(host: self, server: server, manifest: manifest)
         // MacHUD sends `widget sync` as soon as it connects, so the host is in place first.
         router.widgetHost = widgets
         model.weather.liveInstances = { [weak widgets] in Set(widgets?.instances.map(\.id) ?? []) }
-        model.calendar.liveInstances = { [weak widgets] in Set(widgets?.instances.map(\.id) ?? []) }
     }
 
     func start() {
@@ -93,8 +88,7 @@ final class ControlHost: HUDPanelHost {
         switch name {
         case "refresh":
             model.weather.refreshDue(force: true)
-            model.calendar.reload()
-            done(["ok": true, "weather": model.weather.tracked.count, "calendar": model.calendar.access.rawValue])
+            done(["ok": true, "weather": model.weather.tracked.count])
         case "places":
             let query = (args["query"] ?? args["place"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             guard !query.isEmpty else {
@@ -113,7 +107,7 @@ final class ControlHost: HUDPanelHost {
             }
         case "status":
             done(["ok": true, "instances": widgets.instances.count, "editing": widgets.isEditing, "revealed": widgets.isRevealed,
-                  "weather": model.weather.json, "calendar": model.calendar.json, "settings": model.settings.json])
+                  "weather": model.weather.json, "settings": model.settings.json])
         default:
             done(["ok": false, "error": "unknown action \(name) (\(Self.actions.joined(separator: ", ")))"])
         }

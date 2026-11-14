@@ -21,6 +21,13 @@ final class ManifestTests: XCTestCase {
         try HUDSettingsSchema.decode(Data(contentsOf: Self.resources.appendingPathComponent(name)))
     }
 
+    func testCalendarIsOwnedByCalHUD() throws {
+        XCTAssertEqual(try manifest().widgetPanels.map(\.id), ["clock", "weather"])
+        let data = try Data(contentsOf: Self.resources.appendingPathComponent("Info.plist"))
+        let plist = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+        XCTAssertNil(plist["NSCalendarsFullAccessUsageDescription"])
+    }
+
     func testManifestFollowsTheConventions() throws {
         let manifest = try manifest()
         XCTAssertEqual(manifest.id, "xyz.machud.widgethud")
@@ -34,7 +41,6 @@ final class ManifestTests: XCTestCase {
         XCTAssertTrue(manifest.panels.allSatisfy { $0.kind == .widget })
         XCTAssertEqual(manifest.panel(id: "clock")?.widget?.sizes, [.small, .medium])
         XCTAssertEqual(manifest.panel(id: "weather")?.widget?.sizes, [.small, .medium, .large])
-        XCTAssertEqual(manifest.panel(id: "calendar")?.widget?.sizes, [.small, .medium, .large])
         XCTAssertTrue(manifest.widgetPanels.allSatisfy { $0.widget?.multiple == true })
     }
 
@@ -61,17 +67,13 @@ final class ManifestTests: XCTestCase {
         func instanceSchema(_ type: String) throws -> HUDSettingsSchema {
             try schema(XCTUnwrap(manifest.panel(id: type)?.widget?.settingsSchema))
         }
-        let clock = try instanceSchema("clock"), weather = try instanceSchema("weather"), calendar = try instanceSchema("calendar")
+        let clock = try instanceSchema("clock"), weather = try instanceSchema("weather")
         XCTAssertEqual(Set(clock.settings.map(\.key)), ClockOptions.keys)
         XCTAssertEqual(Set(weather.settings.map(\.key)), WeatherOptions.keys)
-        XCTAssertEqual(Set(calendar.settings.map(\.key)), CalendarOptions.keys)
         XCTAssertTrue(WeatherOptions.keys.isDisjoint(with: WeatherOptions.resolvedKeys), "lookup results stay out of the form")
         XCTAssertEqual(ClockOptions(settings: clock.defaults), ClockOptions(settings: [:]))
         XCTAssertEqual(WeatherOptions(settings: weather.defaults), WeatherOptions(settings: [:]))
-        XCTAssertEqual(CalendarOptions(settings: calendar.defaults), CalendarOptions(settings: [:]))
-        for schema in [clock, weather, calendar] { XCTAssertTrue(schema.settings.allSatisfy { $0.default != nil }) }
-        XCTAssertEqual(calendar.field("daysAhead")?.min, Double(CalendarOptions.daysRange.lowerBound))
-        XCTAssertEqual(calendar.field("daysAhead")?.max, Double(CalendarOptions.daysRange.upperBound))
+        for schema in [clock, weather] { XCTAssertTrue(schema.settings.allSatisfy { $0.default != nil }) }
         XCTAssertEqual(Set(clock.field("style")?.options.map(\.value) ?? []), Set(ClockOptions.Style.allCases.map(\.rawValue)))
     }
 
@@ -82,10 +84,8 @@ final class ManifestTests: XCTestCase {
         XCTAssertEqual(plist["CFBundleExecutable"] as? String, "widgetHUD")
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
         XCTAssertNotNil(plist["NSHumanReadableCopyright"])
-        XCTAssertNotNil(plist["NSCalendarsFullAccessUsageDescription"], "EventKit full access needs a reason")
         let ent = try Data(contentsOf: Self.repo.appendingPathComponent("widgetHUD.entitlements"))
         let entitlements = try XCTUnwrap(PropertyListSerialization.propertyList(from: ent, format: nil) as? [String: Any])
-        XCTAssertEqual(entitlements["com.apple.security.personal-information.calendars"] as? Bool, true,
-                       "the hardened runtime refuses Calendar access without it")
+        XCTAssertNil(entitlements["com.apple.security.personal-information.calendars"])
     }
 }

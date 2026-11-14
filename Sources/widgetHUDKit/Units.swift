@@ -162,3 +162,17 @@ public enum Age {
         }
     }
 }
+
+/// Relative words for the forecast's first local day.
+public enum WeatherDayLabel {
+    public static func relativeDay(_ date: Date, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String? {
+        let day = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: date)).day
+        guard let day, day == 0 || day == 1 else { return nil }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = locale
+        formatter.calendar = calendar
+        formatter.dateTimeStyle = .named
+        let word = formatter.localizedString(from: DateComponents(day: day))
+        return word.prefix(1).uppercased(with: locale) + word.dropFirst()
+    }
+}

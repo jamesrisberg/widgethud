@@ -72,18 +72,4 @@ final class WidgetOptionsTests: XCTestCase {
         XCTAssertFalse(WeatherOptions(settings: ["showDaily": false]).showDaily)
     }
 
-    func testCalendarOptions() {
-        let o = CalendarOptions(settings: [:])
-        XCTAssertEqual(o.calendars, [])
-        XCTAssertEqual(o.daysAhead, 3)
-        let work = CalendarEvent(id: "1", title: "a", start: Date(), end: Date(), calendar: "Work")
-        XCTAssertTrue(o.includes(work))
-        let picked = CalendarOptions(settings: ["calendars": " work, Family ,", "daysAhead": 40])
-        XCTAssertEqual(picked.calendars, ["work", "Family"])
-        XCTAssertEqual(picked.daysAhead, 14, "clamped")
-        XCTAssertTrue(picked.includes(work))
-        var home = work
-        home.calendar = "Home"
-        XCTAssertFalse(picked.includes(home))
-    }
 }

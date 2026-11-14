@@ -9,7 +9,7 @@ MacHUD sends and expects) are specified in HUDKit's
 widgetHUD adds or does differently.
 
 - Manifest: `Sources/widgetHUD/Resources/machud.json`: app `xyz.machud.widgethud`, socket
-  `widgethud`, icon `square.grid.2x2`, three panels, all `kind: widget` and none in the dock
+  `widgethud`, icon `square.grid.2x2`, two panels, all `kind: widget` and none in the dock
   (`HUDManifest.dockPanels` is empty). The app's settings schema is `settings.json`, named by
   the first panel.
 
@@ -17,9 +17,8 @@ widgetHUD adds or does differently.
   |---|---|---|---|---|---|---|
   | `clock` | `clock` | small, medium | small | yes | 1 | `clock.widget.json` |
   | `weather` | `cloud.sun` | small, medium, large | small | yes | 900 | `weather.widget.json` |
-  | `calendar` | `calendar` | small, medium, large | medium | yes | 60 | `calendar.widget.json` |
 
-- Widgets: `HUDWidgetHost` with the three types registered, set as `router.widgetHost` before
+- Widgets: `HUDWidgetHost` with the two types registered, set as `router.widgetHost` before
   the socket starts. Windows, levels, Spaces, locking, edit chrome and the `widget` verb are
   HUDKit's. widgetHUD keeps instances in memory only; MacHUD's `widget sync` after it connects
   restores them.
@@ -34,7 +33,7 @@ widgetHUD adds or does differently.
 
 | Command | Args | Result |
 |---|---|---|
-| `hello` | | `{app, name, hudkit, version, panels, verbs}`: the three widget panels with their `widget` objects; `verbs` ends with `menu`, `menu-invoke`, `widget` |
+| `hello` | | `{app, name, hudkit, version, panels, verbs}`: the two widget panels with their `widget` objects; `verbs` ends with `menu`, `menu-invoke`, `widget` |
 | `state` | | `{panels: []}`: no dock panels |
 | `subscribe` | `events=state,widget` (optional) | `state` events on settings changes; `widget` events (below) |
 | `panel ...` | | `no such panel`: widgets are placed with `widget`, never `panel` |
@@ -42,9 +41,9 @@ widgetHUD adds or does differently.
 | `settings get` | `key=` (optional) | `{settings: {temperatureUnit, timeFormat, menuBar.consumed}}` |
 | `settings set` | `key=value ...` | validates every value before applying any |
 | `settings schema` | | `{schema}` from `settings.json` |
-| `action refresh` | | fetches every shown place's weather and reloads the calendars now. `{weather: <weather widgets tracked>, calendar: <access>}` |
+| `action refresh` | | fetches every shown place's weather now. `{weather: <weather widgets tracked>}` |
 | `action places` | `query=<place>` | Open-Meteo's matches: `{query, best, places: [{name, latitude, longitude, timeZone}]}`; `best` is what a weather widget with that place would show |
-| `action status` | | `{instances, editing, revealed, weather: {sample, places: [{place, fetchedAt?, error?, loading}], lookups: [{text, found} or {text, state, error?, retryAt?}], instances}, calendar: {access, events, loadedAt?, sample, active, widgets}, settings}` |
+| `action status` | | `{instances, editing, revealed, weather: {sample, places: [{place, fetchedAt?, error?, loading}], lookups: [{text, found} or {text, state, error?, retryAt?}], instances}, settings}` |
 | `menu` / `menu-invoke` | `id=` (and optional `title=`) for `menu-invoke` | the status menu, so MacHUD can host it |
 | `quit` | | replies, then quits (the socket file is removed) |
 | `help` | | lists the registered commands |
@@ -73,9 +72,6 @@ Per instance, checked by the type's schema (`widget schema type=`):
 | weather | `units` | enum `app`, `celsius`, `fahrenheit` | `app` | |
 | weather | `showHourly` | bool | `true` | the next five hours (medium, large) |
 | weather | `showDaily` | bool | `true` | the next five days (large; medium when hourly is off) |
-| calendar | `calendars` | string | `""` | calendar names separated by commas, any case; empty is every calendar |
-| calendar | `daysAhead` | int 1-14 | `3` | how far ahead every size looks |
-| calendar | `timeFormat` | enum `app`, `12h`, `24h` | `app` | |
 
 Weather widgets also keep, in the same settings, keys the schema does not list (so MacHUD's
 settings form does not show them): `latitude`, `longitude`, `resolvedPlace` (the `place` text
@@ -101,16 +97,6 @@ written to again for the same text.
   minutes old, and a forecast without today in it (cached on an earlier day) is shown as out of
   date instead. Forecasts and places no widget shows any more leave the cache when their last
   widget goes.
-- Calendar: EventKit, full access (`NSCalendarsFullAccessUsageDescription`; the
-  `com.apple.security.personal-information.calendars` entitlement for the hardened runtime).
-  Access is requested when the first calendar widget appears, never at launch. While at least
-  one calendar widget is shown, the next 15 days of every calendar are read on a serial
-  background queue (a burst of changes loads once; only the newest load is kept) and reloaded
-  on `EKEventStoreChanged`, at midnight, after wake and every 5 minutes, and the access is
-  re-read every minute, so a grant made in System Settings shows within a minute. With no
-  calendar widget left, all of that stops. Each instance filters by its `calendars` and
-  `daysAhead`. Without access the widget says why, with a button: Allow… (the system prompt)
-  before the user was asked, Open Settings… (Privacy & Security › Calendars) after a refusal.
 - Clocks follow this Mac's time zone as it changes. Times use the 12- or 24-hour setting with
   the locale's AM/PM words; "today", "tomorrow", weekdays and dates are in the locale's
   language (widgetHUD's own words are English).
@@ -131,8 +117,7 @@ the defaults key by key.
 
 While MacHUD runs it shows widgetHUD's status menu inside its own (`menu`, `menu-invoke`) and the
 menu bar icon hides (`HUDStatusItemPolicy`); the icon comes back when MacHUD quits or the user
-turns `menuBar.consumed` off. Items: the number of widgets placed, Refresh Weather and
-Calendars, Calendar Access…, Quit widgetHUD. widgetHUD has no text input, so no Edit menu.
+turns `menuBar.consumed` off. Items: the number of widgets placed, Refresh Weather, Quit widgetHUD. widgetHUD has no text input, so no Edit menu.
 
 ## Environment
 
@@ -141,13 +126,13 @@ Calendars, Calendar Access…, Quit widgetHUD. widgetHUD has no text input, so n
 | `WIDGETHUD_HOME` | app | base directory for everything the app writes |
 | `WIDGETHUD_SOCKET` | app, CLI | socket name instead of `widgethud` |
 | `WIDGETHUD_NO_HOTKEYS` | | accepted; widgetHUD registers no global hotkeys |
-| `WIDGETHUD_SAMPLE_DATA` | app | `1`: sample weather and events, no network and no Calendar access asked |
+| `WIDGETHUD_SAMPLE_DATA` | app | `1`: sample weather without network access |
 
 ## Launch flags
 
 | Flag | Effect |
 |---|---|
-| `--snapshot <path.png>` | renders every type at every size, and the no-place, no-access and world-clock states, with sample data to `<stem>-<name>.png`, writes a contact sheet of them to `<path.png>`, prints the paths and quits |
+| `--snapshot <path.png>` | renders every type at every size, and the no-place and world-clock states, with sample data to `<stem>-<name>.png`, writes a contact sheet of them to `<path.png>`, prints the paths and quits |
 | `--snapshot <path.png> --type <type> [--size <size>]` | one widget to `<path.png>` (size default: the type's `defaultSize`) |
 | `--editing` | with `--snapshot`: draw HUDKit's edit controls |
 
@@ -155,4 +140,4 @@ Calendars, Calendar Access…, Quit widgetHUD. widgetHUD has no text input, so n
 
 HUDKit's compliance checklist passes except its panel checks (`state` lists a panel, `panel
 show/hide`, hover show/hide, `panel frame`), which assume a dock panel; widgetHUD has none and
-answers `no such panel`. The widget block passes for each of `clock`, `weather` and `calendar`.
+answers `no such panel`. The widget block passes for each of `clock` and `weather`.

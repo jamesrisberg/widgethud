@@ -28,8 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             model = AppModel.sample(settingsURL: AppEnvironment.settingsURL)
         } else {
             model = AppModel(settingsURL: AppEnvironment.settingsURL,
-                             weather: WeatherStore(client: .live, cache: WeatherCache(url: AppEnvironment.weatherCacheURL)),
-                             calendar: CalendarStore(provider: EventKitCalendars()))
+                             weather: WeatherStore(client: .live, cache: WeatherCache(url: AppEnvironment.weatherCacheURL)))
         }
         control = ControlHost(model: model)
         control.start()
@@ -54,12 +53,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusLine.isEnabled = false
         menu.addItem(statusLine)
         menu.addItem(.separator())
-        let refresh = NSMenuItem(title: "Refresh Weather and Calendars", action: #selector(refreshAll), keyEquivalent: "r")
+        let refresh = NSMenuItem(title: "Refresh Weather", action: #selector(refreshAll), keyEquivalent: "r")
         refresh.target = self
         menu.addItem(refresh)
-        let access = NSMenuItem(title: "Calendar Access…", action: #selector(calendarAccess), keyEquivalent: "")
-        access.target = self
-        menu.addItem(access)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit widgetHUD", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
@@ -76,15 +72,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func refreshAll() {
         model.weather.refreshDue(force: true)
-        model.calendar.reload()
     }
 
-    /// The system prompt the first time; System Settings' Calendars pane once refused.
-    @objc private func calendarAccess() {
-        if model.calendar.access == .granted {
-            model.calendar.openPrivacySettings()
-        } else {
-            model.calendar.requestAccess()
-        }
-    }
 }
